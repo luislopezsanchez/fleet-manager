@@ -1,0 +1,180 @@
+"""SQLAlchemy ORM models for the fleet-manager backend."""
+import enum
+import uuid
+from datetime import datetime
+
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database import Base
+
+
+# ── Enums ──────────────────────────────────────────────────────────────────
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    supervisor = "supervisor"
+
+
+class CommandStatus(str, enum.Enum):
+    pending = "pending"
+    sent = "sent"
+    confirmed = "confirmed"
+    failed = "failed"
+
+
+# ── Sector ─────────────────────────────────────────────────────────────────
+class Sector(Base):
+    __tablename__ = "sectors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    users: Mapped[list["User"]] = relationship(back_populates="sector")
+
+
+# ── User ───────────────────────────────────────────────────────────────────
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(512), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="user_role"),
+        nullable=False,
+        default=UserRole.supervisor,
+    )
+    sector_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sectors.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    sector: Mapped[Sector | None] = relationship(back_populates="users")
+
+
+# ── DeviceCache (synced from istarmap) ─────────────────────────────────────
+class DeviceCache(Base):
+    __tablename__ = "device_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    imei: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
+    device_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    driver_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    plate_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    org_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    last_online_time: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    active_time: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    avatar: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    icon_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    over_speed: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fuel_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sim: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    iccid: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    car_vin: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    sector_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sectors.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    raw_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    sector: Mapped[Sector | None] = relationship()
+
+# ── GpsCache (latest GPS positions) ────────────────────────────────────────
+class GpsCache(Base):
+    __tablename__ = "gps_cache"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    device_imei: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lon: Mapped[float] = mapped_column(Float, nullable=False)
+    speed: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gps_time: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    odometer: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status1: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mask1: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    acc_on: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    warn_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+# ── CommandLog ─────────────────────────────────────────────────────────────
+class CommandLog(Base):
+    __tablename__ = "command_logs"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    device_imei: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    command_type: Mapped[int] = mapped_column(Integer, nullable=False)  # 144 / 145 / 146
+    ibutton_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[CommandStatus] = mapped_column(
+        Enum(CommandStatus, name="command_status"),
+        nullable=False,
+        default=CommandStatus.pending,
+    )
+    result_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+# ── Alert ──────────────────────────────────────────────────────────────────
+class Alert(Base):
+    __tablename__ = "alerts"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    device_imei: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    alert_type: Mapped[str] = mapped_column(String(50), nullable=False)  # inactivity / speed / geofence / etc
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False, default="info")  # info / warning / critical
+    acknowledged_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    acknowledged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+# ── SystemConfig (key-value store for runtime settings) ─────────────────────
+class SystemConfig(Base):
+    __tablename__ = "system_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )

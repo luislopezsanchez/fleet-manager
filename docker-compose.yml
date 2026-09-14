@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: fleet-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fleet
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-FleetSec2026}
+      POSTGRES_DB: fleet
+    ports:
+      - "127.0.0.1:55434:5432"
+    volumes:
+      - fleet_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fleet -d fleet"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fleet-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://fleet:${DB_PASSWORD:-FleetSec2026}@db:5432/fleet
+      JWT_SECRET: ${JWT_SECRET:-fleet-secret-change-in-production}
+      ISTARMAP_BASE_URL: https://istarmap.com
+      ISTARMAP_CLIENT_ID: third
+      ISTARMAP_CLIENT_SECRET: "89765423"
+      ISTARMAP_USERNAME: ${ISTARMAP_USERNAME:-}
+      ISTARMAP_PASSWORD: ${ISTARMAP_PASSWORD:-}
+      ISTARMAP_ORG_ID: ${ISTARMAP_ORG_ID:-0}
+      AI_PROVIDER: ${AI_PROVIDER:-ollama_cloud}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-qwen2.5:7b}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.ollama.com/v1}
+      CORS_ORIGINS: '["http://172.30.36.87:8093","http://localhost:8093","http://localhost:5173"]'
+    ports:
+      - "8092:8000"
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fleet-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8093:80"
+
+volumes:
+  fleet_db_data:

@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+alembic
+pydantic-settings
+pydantic[email]
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.2.1
+python-multipart
+httpx
+psycopg2-binary
+aiofiles
+pyjwt
+pycryptodome

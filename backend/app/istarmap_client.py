@@ -228,9 +228,14 @@ class IstarmapClient:
         imei: str,
         start_time: str,
         end_time: str,
+        filter_drift: bool = True,
     ) -> list[dict]:
-        """GET /tapi/tracker/history/{imei} — historical GPS track."""
-        params = {"startTime": start_time, "endTime": end_time}
+        """GET /tapi/tracker/history/{imei} — historical GPS track (playback)."""
+        params: dict[str, Any] = {
+            "startTime": start_time,
+            "endTime": end_time,
+            "filterDrift": filter_drift,
+        }
         result = await self._authed_request(
             "GET", f"/tapi/tracker/history/{imei}", params=params
         )
@@ -301,6 +306,24 @@ class IstarmapClient:
         if params:
             body["params"] = params
         return await self._authed_request("POST", "/tapi/command/send", json=body)
+
+    async def term_ctrl(
+        self,
+        imei: str,
+        ctrl_type: str,
+    ) -> dict:
+        """POST /tapi/command/{termId}/termCtrl — terminal control.
+
+        ctrl_type: "OIL_ELE_CUT" (cut fuel/electricity) | "OIL_ELE_RECOVER" (restore).
+        Returns {"code":0, "data": {"requestId": "...", "result": "SUCCESS|OFF_LINE|FAIL"}}.
+        """
+        if ctrl_type not in ("OIL_ELE_CUT", "OIL_ELE_RECOVER"):
+            raise ValueError(f"Invalid ctrl_type: {ctrl_type}")
+        return await self._authed_request(
+            "POST",
+            f"/tapi/command/{imei}/termCtrl",
+            json={"ctrlType": ctrl_type},
+        )
 
     async def get_command_result(
         self,

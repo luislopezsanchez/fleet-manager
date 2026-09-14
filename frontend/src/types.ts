@@ -183,3 +183,38 @@ export interface UploadResult {
   failed: number;
   commands: CommandLog[];
 }
+export interface HistoryPoint {
+  lat: number;
+  lon: number;
+  speed: number | null;      // km/h
+  gps_time: string | null;
+  angle: number | null;
+  status1: number | null;
+  mask1: number | null;
+  odometer: number | null;   // km
+  satellites: number | null;
+  ext_voltage: number | null;
+}
+
+export interface HistoryResponse {
+  total: number;
+  points: HistoryPoint[];
+}
+
+export interface VehicleCreatePayload {
+  imei: string;
+  device_name?: string;
+  driver_name?: string;
+  plate_no?: string;
+  org_id?: number;
+  sector_id?: number | null;
+  over_speed?: number;
+  sim?: string;
+  car_vin?: string;
+}
+
+export interface TermCtrlResponse {
+  request_id: string | null;
+  result: string | null;   // SUCCESS | OFF_LINE | FAIL
+  message: string | null;
+}

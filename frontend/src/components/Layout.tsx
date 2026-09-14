@@ -30,7 +30,7 @@ export default function Layout() {
 
   const navItems = [
     { to: '/dashboard', key: 'dashboard', label: t('nav.dashboard') },
-    { to: '/devices', key: 'devices', label: t('nav.devices') },
+    { to: '/devices', key: 'devices', label: t('nav.vehicles') },
     { to: '/map', key: 'map', label: t('nav.map') },
     { to: '/reports', key: 'reports', label: t('nav.reports') },
     { to: '/ibuttons', key: 'ibuttons', label: t('nav.ibuttons') },

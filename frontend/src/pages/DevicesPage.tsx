@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../contexts/AuthContext';
-import type { DeviceListResponse, Device, GpsPosition, TrackResponse, DeviceStatus, Sector } from '../types';
+import type { DeviceListResponse, Device, GpsPosition, TrackResponse, DeviceStatus, Sector, VehicleCreatePayload } from '../types';
 
 const ORG_ID = 6128;
 
@@ -33,6 +33,8 @@ function calculateStatus(
   return 'stationary';
 }
 
+const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none';
+
 export default function DevicesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -47,6 +49,14 @@ export default function DevicesPage() {
   const [error, setError] = useState('');
   const [sectorFilter, setSectorFilter] = useState<number | ''>('');
   const [updatingImei, setUpdatingImei] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const emptyForm: VehicleCreatePayload = {
+    imei: '', device_name: '', driver_name: '', plate_no: '',
+    sector_id: null, over_speed: undefined, sim: '', car_vin: '',
+  };
+  const [form, setForm] = useState<VehicleCreatePayload>(emptyForm);
 
   const fetchSectors = useCallback(async () => {
     if (!isAdmin) return;
@@ -105,6 +115,28 @@ export default function DevicesPage() {
     }
   };
 
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError('');
+    if (!form.imei || form.imei.length < 10) {
+      setAddError(t('vehicles.imei') + ': min 10');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: VehicleCreatePayload = { ...form };
+      await api.post('/devices/', payload);
+      setShowAdd(false);
+      setForm(emptyForm);
+      await fetchDevices();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || '';
+      setAddError(typeof detail === 'string' && detail.includes('already exists') ? t('vehicles.exists') : t('common.error'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSectorChange = async (imei: string, sectorId: number | null) => {
     setUpdatingImei(imei);
     try {
@@ -138,31 +170,44 @@ export default function DevicesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">{t('devices.title')}</h1>
-          <p className="text-gray-500 mt-1">{t('devices.subtitle')}</p>
+          <h1 className="text-2xl font-bold text-gray-800">{t('vehicles.title')}</h1>
+          <p className="text-gray-500 mt-1">{t('vehicles.subtitle')}</p>
         </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 text-sm"
-        >
-          {syncing ? (
-            <>
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              {t('common.loading')}
-            </>
-          ) : (
-            <>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 text-sm"
+            >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              {t('devices.sync')}
-            </>
+              {t('vehicles.add')}
+            </button>
           )}
-        </button>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 text-sm"
+          >
+            {syncing ? (
+              <>
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                {t('common.loading')}
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {t('devices.sync')}
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Sector filter (admin only) */}
@@ -201,11 +246,11 @@ export default function DevicesPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('devices.name')}</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('devices.driver')}</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('vehicles.name')}</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('vehicles.driver')}</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">IMEI</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('devices.plate')}</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('devices.sector')}</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('vehicles.plate')}</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('vehicles.sector')}</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('devices.last_seen')}</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('devices.status')}</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider"></th>
@@ -267,6 +312,89 @@ export default function DevicesPage() {
           </div>
         )}
       </div>
+
+      {/* Add vehicle modal */}
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowAdd(false)}>
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold text-gray-800 mb-4">{t('vehicles.add')}</h2>
+            {addError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm mb-3">{addError}</div>
+            )}
+            <form onSubmit={handleAdd} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">IMEI *</label>
+                <input
+                  className={inputCls}
+                  value={form.imei}
+                  onChange={(e) => setForm({ ...form, imei: e.target.value.trim() })}
+                  placeholder="8652350596..."
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.name')}</label>
+                  <input className={inputCls} value={form.device_name || ''} onChange={(e) => setForm({ ...form, device_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.driver')}</label>
+                  <input className={inputCls} value={form.driver_name || ''} onChange={(e) => setForm({ ...form, driver_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.plate')}</label>
+                  <input className={inputCls} value={form.plate_no || ''} onChange={(e) => setForm({ ...form, plate_no: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.over_speed')}</label>
+                  <input
+                    type="number"
+                    className={inputCls}
+                    value={form.over_speed ?? ''}
+                    onChange={(e) => setForm({ ...form, over_speed: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.sim')}</label>
+                  <input className={inputCls} value={form.sim || ''} onChange={(e) => setForm({ ...form, sim: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.vin')}</label>
+                  <input className={inputCls} value={form.car_vin || ''} onChange={(e) => setForm({ ...form, car_vin: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.sector')}</label>
+                <select
+                  className={inputCls}
+                  value={form.sector_id ?? ''}
+                  onChange={(e) => setForm({ ...form, sector_id: e.target.value === '' ? null : Number(e.target.value) })}
+                >
+                  <option value="">{t('devices.no_sector')}</option>
+                  {sectors.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+                >
+                  {saving ? t('common.loading') : t('vehicles.create')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

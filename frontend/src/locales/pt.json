@@ -22,7 +22,8 @@
     "settings": "Configuração",
     "logout": "Sair",
     "assistant": "Assistente IA",
-    "users": "Usuários"
+    "users": "Usuários",
+    "vehicles": "Veículos"
   },
   "dashboard": {
     "title": "Painel Principal",
@@ -225,5 +226,42 @@
     "alarm_1042": "Impacto/Colisão",
     "alarm_1043": "Direção com fadiga",
     "alarm_1045": "Direção prolongada"
+  },
+  "vehicles": {
+    "title": "Veículos",
+    "subtitle": "Gestão de veículos da frota",
+    "add": "Adicionar Veículo",
+    "imei": "IMEI",
+    "name": "Nome",
+    "driver": "Motorista",
+    "plate": "Placa",
+    "sector": "Setor",
+    "over_speed": "Limite de velocidade (km/h)",
+    "sim": "SIM",
+    "vin": "VIN",
+    "create": "Criar",
+    "created": "Veículo criado",
+    "exists": "Já existe um veículo com esse IMEI",
+    "playback": "Histórico de Circulação",
+    "playback_subtitle": "Reproduzir a rota do veículo",
+    "start": "Início",
+    "end": "Fim",
+    "load": "Carregar rota",
+    "play": "Reproduzir",
+    "pause": "Pausar",
+    "stop": "Parar",
+    "no_track": "Sem pontos GPS no período selecionado",
+    "commands": "Comandos",
+    "commands_subtitle": "Ações sobre o veículo",
+    "cmd_cut": "Cortar combustível",
+    "cmd_recover": "Restaurar combustível",
+    "cmd_confirm_cut": "Cortar combustível/eletricidade do veículo {name}? Apenas se for seguro.",
+    "cmd_confirm_recover": "Restaurar combustível/eletricidade do veículo {name}?",
+    "cmd_sent": "Comando enviado",
+    "cmd_result": "Resultado",
+    "cmd_success": "SUCCESS",
+    "cmd_offline": "Veículo desconectado (OFF_LINE)",
+    "cmd_fail": "Comando falhou (FAIL)",
+    "cmd_check": "Consultar resultado"
   }
 }

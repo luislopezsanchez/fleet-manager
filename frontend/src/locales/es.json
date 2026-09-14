@@ -22,7 +22,8 @@
     "settings": "Configuración",
     "logout": "Cerrar Sesión",
     "assistant": "Asistente IA",
-    "users": "Usuarios"
+    "users": "Usuarios",
+    "vehicles": "Vehículos"
   },
   "dashboard": {
     "title": "Panel Principal",
@@ -225,5 +226,42 @@
     "alarm_1042": "Impacto/Colisión",
     "alarm_1043": "Conducción con fatiga",
     "alarm_1045": "Conducción prolongada"
+  },
+  "vehicles": {
+    "title": "Vehículos",
+    "subtitle": "Gestión de vehículos de la flota",
+    "add": "Añadir Vehículo",
+    "imei": "IMEI",
+    "name": "Nombre",
+    "driver": "Conductor",
+    "plate": "Patente",
+    "sector": "Sector",
+    "over_speed": "Límite velocidad (km/h)",
+    "sim": "SIM",
+    "vin": "VIN",
+    "create": "Crear",
+    "created": "Vehículo creado",
+    "exists": "Ya existe un vehículo con ese IMEI",
+    "playback": "Historial de Circulación",
+    "playback_subtitle": "Reproduce la ruta del vehículo",
+    "start": "Inicio",
+    "end": "Fin",
+    "load": "Cargar ruta",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "stop": "Detener",
+    "no_track": "No hay puntos GPS en el período seleccionado",
+    "commands": "Comandos",
+    "commands_subtitle": "Acciones sobre el vehículo",
+    "cmd_cut": "Cortar combustible",
+    "cmd_recover": "Restaurar combustible",
+    "cmd_confirm_cut": "¿Cortar el combustible/electricidad del vehículo {name}? Solo hazlo si es seguro.",
+    "cmd_confirm_recover": "¿Restaurar el combustible/electricidad del vehículo {name}?",
+    "cmd_sent": "Comando enviado",
+    "cmd_result": "Resultado",
+    "cmd_success": "SUCCESS",
+    "cmd_offline": "El vehículo está desconectado (OFF_LINE)",
+    "cmd_fail": "El comando falló (FAIL)",
+    "cmd_check": "Consultar resultado"
   }
 }

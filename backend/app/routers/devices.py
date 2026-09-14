@@ -11,13 +11,19 @@ from app.database import get_db
 from app.istarmap_client import IstarmapClient, get_authenticated_istarmap_client
 from app.models import DeviceCache, GpsCache, User, UserRole
 from app.schemas import (
+    CommandResultResponse,
     DeviceListResponse,
     DeviceResponse,
     DeviceSectorAssignRequest,
     DeviceSyncResponse,
     GpsPosition,
+    HistoryRequest,
+    HistoryResponse,
+    TermCtrlRequest,
+    TermCtrlResponse,
     TrackRequest,
     TrackResponse,
+    VehicleCreateRequest,
 )
 
 router = APIRouter(prefix="/devices", tags=["devices"])
@@ -131,6 +137,42 @@ async def sync_devices(
         total=synced,
         message=f"Synced {synced} devices from Istarmap",
     )
+
+
+@router.post("/", response_model=DeviceResponse, status_code=status.HTTP_201_CREATED)
+async def create_vehicle(
+    body: VehicleCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(role_required("admin")),
+):
+    """Register a vehicle (GPS tracker) locally. Admin only.
+
+    The device must already exist in Istarmap (identified by IMEI); this creates
+    the local cache entry so it appears in the fleet lists.
+    """
+    existing = await db.execute(select(DeviceCache).where(DeviceCache.imei == body.imei))
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Vehicle with IMEI {body.imei} already exists",
+        )
+
+    record = DeviceCache(
+        imei=body.imei,
+        device_name=body.device_name,
+        driver_name=body.driver_name,
+        plate_no=body.plate_no,
+        org_id=body.org_id,
+        sector_id=body.sector_id,
+        over_speed=body.over_speed,
+        sim=body.sim,
+        car_vin=body.car_vin,
+        updated_at=datetime.now(timezone.utc),
+    )
+    db.add(record)
+    await db.flush()
+    await db.refresh(record)
+    return DeviceResponse.model_validate(record)
 
 
 @router.get("/{imei}/position", response_model=GpsPosition)
@@ -292,4 +334,112 @@ async def track_devices(
         total=len(positions),
         positions=positions,
         last_query_time=new_lqt,
+    )
+
+
+# ── Playback / History ─────────────────────────────────────────────────────
+@router.post("/{imei}/history", response_model=HistoryResponse)
+async def get_device_history(
+    imei: str,
+    body: HistoryRequest,
+    current_user: User = Depends(get_current_user),
+    client: IstarmapClient = Depends(get_authenticated_istarmap_client),
+):
+    """Historical GPS track for playback (GET /tapi/tracker/history/{imei})."""
+    if body.imei != imei:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="imei in path and body must match",
+        )
+    try:
+        raw = await client.get_history(
+            imei, body.start_time, body.end_time, body.filter_drift
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Istarmap history failed: {exc}",
+        )
+
+    points = []
+    for p in raw:
+        lat = float(p.get("lat", 0) or 0)
+        lon = float(p.get("lon", 0) or 0)
+        if lat == 0.0 and lon == 0.0:
+            continue
+        raw_speed = p.get("speed")
+        speed_kmh = round(float(raw_speed) / 1000.0, 1) if raw_speed is not None else None
+        odo_raw = p.get("odometer")
+        odo_km = round(float(odo_raw) / 1000.0, 2) if odo_raw is not None else None
+        points.append(
+            {
+                "lat": lat,
+                "lon": lon,
+                "speed": speed_kmh,
+                "gps_time": p.get("gpsTime"),
+                "angle": float(p["angle"]) if p.get("angle") is not None else None,
+                "status1": p.get("status1"),
+                "mask1": p.get("mask1"),
+                "odometer": odo_km,
+                "satellites": p.get("quantity"),
+                "ext_voltage": p.get("extVoltage"),
+            }
+        )
+
+    return HistoryResponse(total=len(points), points=points)
+
+
+# ── Terminal control (commands) ────────────────────────────────────────────
+@router.post("/{imei}/command", response_model=TermCtrlResponse)
+async def send_term_ctrl(
+    imei: str,
+    body: TermCtrlRequest,
+    current_user: User = Depends(role_required("admin")),
+    client: IstarmapClient = Depends(get_authenticated_istarmap_client),
+):
+    """Send a terminal control command to a vehicle. Admin only.
+
+    ctrl_type: OIL_ELE_CUT (cut fuel/electricity) | OIL_ELE_RECOVER (restore).
+    """
+    if body.imei != imei:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="imei in path and body must match",
+        )
+    try:
+        result = await client.term_ctrl(imei, body.ctrl_type)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Istarmap termCtrl failed: {exc}",
+        )
+
+    data = result.get("data", {}) if isinstance(result, dict) else {}
+    return TermCtrlResponse(
+        request_id=data.get("requestId"),
+        result=data.get("result"),
+        message=result.get("msg") if isinstance(result, dict) else None,
+    )
+
+
+@router.get("/{imei}/command_result", response_model=CommandResultResponse)
+async def get_term_ctrl_result(
+    imei: str,
+    request_id: str,
+    current_user: User = Depends(role_required("admin")),
+    client: IstarmapClient = Depends(get_authenticated_istarmap_client),
+):
+    """Query the delivery result of a terminal command by requestId. Admin only."""
+    try:
+        result = await client.get_command_result(imei, request_id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Istarmap command result failed: {exc}",
+        )
+    data = result.get("data", {}) if isinstance(result, dict) else {}
+    return CommandResultResponse(
+        request_id=request_id,
+        result=data.get("result") if isinstance(data, dict) else None,
+        raw=result,
     )

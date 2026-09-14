@@ -223,5 +223,60 @@ class DeviceSectorAssignRequest(BaseModel):
     sector_id: Optional[int] = None  # None = unassign
 
 
+class VehicleCreateRequest(BaseModel):
+    imei: str = Field(min_length=10, max_length=20)
+    device_name: Optional[str] = None
+    driver_name: Optional[str] = None
+    plate_no: Optional[str] = None
+    org_id: Optional[int] = None
+    sector_id: Optional[int] = None
+    over_speed: Optional[int] = None
+    sim: Optional[str] = None
+    car_vin: Optional[str] = None
+
+
+# ── Playback / History / Terminal control ──────────────────────────────────
+class HistoryRequest(BaseModel):
+    imei: str
+    start_time: str  # yyyy-MM-ddTHH:mm:ssZ (UTC)
+    end_time: str
+    filter_drift: bool = True
+
+
+class HistoryPoint(BaseModel):
+    lat: float
+    lon: float
+    speed: Optional[float] = None  # km/h
+    gps_time: Optional[str] = None
+    angle: Optional[float] = None
+    status1: Optional[int] = None
+    mask1: Optional[int] = None
+    odometer: Optional[float] = None  # km
+    satellites: Optional[int] = None
+    ext_voltage: Optional[float] = None  # 0.01V
+
+
+class HistoryResponse(BaseModel):
+    total: int
+    points: List[HistoryPoint]
+
+
+class TermCtrlRequest(BaseModel):
+    imei: str
+    ctrl_type: str  # OIL_ELE_CUT | OIL_ELE_RECOVER
+
+
+class TermCtrlResponse(BaseModel):
+    request_id: Optional[str] = None
+    result: Optional[str] = None  # SUCCESS | OFF_LINE | FAIL
+    message: Optional[str] = None
+
+
+class CommandResultResponse(BaseModel):
+    request_id: Optional[str] = None
+    result: Optional[str] = None
+    raw: Optional[dict[str, Any]] = None
+
+
 # ── Forward refs ───────────────────────────────────────────────────────────
 TokenResponse.model_rebuild()

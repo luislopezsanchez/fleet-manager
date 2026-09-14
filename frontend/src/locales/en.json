@@ -22,7 +22,8 @@
     "settings": "Settings",
     "logout": "Logout",
     "assistant": "AI Assistant",
-    "users": "Users"
+    "users": "Users",
+    "vehicles": "Vehicles"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -225,5 +226,42 @@
     "alarm_1042": "Impact/Collision",
     "alarm_1043": "Fatigue driving",
     "alarm_1045": "Overtime driving"
+  },
+  "vehicles": {
+    "title": "Vehicles",
+    "subtitle": "Fleet vehicle management",
+    "add": "Add Vehicle",
+    "imei": "IMEI",
+    "name": "Name",
+    "driver": "Driver",
+    "plate": "Plate",
+    "sector": "Sector",
+    "over_speed": "Speed limit (km/h)",
+    "sim": "SIM",
+    "vin": "VIN",
+    "create": "Create",
+    "created": "Vehicle created",
+    "exists": "A vehicle with that IMEI already exists",
+    "playback": "Trip History (Playback)",
+    "playback_subtitle": "Replay the vehicle's route",
+    "start": "Start",
+    "end": "End",
+    "load": "Load track",
+    "play": "Play",
+    "pause": "Pause",
+    "stop": "Stop",
+    "no_track": "No GPS points in the selected period",
+    "commands": "Commands",
+    "commands_subtitle": "Actions on the vehicle",
+    "cmd_cut": "Cut fuel",
+    "cmd_recover": "Restore fuel",
+    "cmd_confirm_cut": "Cut fuel/electricity of vehicle {name}? Only if it is safe.",
+    "cmd_confirm_recover": "Restore fuel/electricity of vehicle {name}?",
+    "cmd_sent": "Command sent",
+    "cmd_result": "Result",
+    "cmd_success": "SUCCESS",
+    "cmd_offline": "Vehicle is offline (OFF_LINE)",
+    "cmd_fail": "Command failed (FAIL)",
+    "cmd_check": "Check result"
   }
 }

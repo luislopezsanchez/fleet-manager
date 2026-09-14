@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../api';
+import DevicePopup from '../components/DevicePopup';
 import type { DeviceListResponse, TrackResponse, GpsPosition, Device, Sector } from '../types';
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
@@ -20,14 +21,17 @@ const icons: Record<string, L.DivIcon> = {
   stationary: makeIcon('#eab308'),
   offline: makeIcon('#ef4444'),
   acc_on: makeIcon('#3b82f6'),
+  overspeed: makeIcon('#ef4444'),
   default: makeIcon('#6b7280'),
 };
 
 const ORG_ID = 6128;
 
-function getIcon(pos: GpsPosition | undefined): L.DivIcon {
+function getIcon(pos: GpsPosition | undefined, overSpeedLimit: number | null): L.DivIcon {
   if (!pos) return icons.offline;
-  if (pos.speed && pos.speed > 0) return icons.moving;
+  const speed = pos.speed ?? 0;
+  if (overSpeedLimit != null && speed > overSpeedLimit) return icons.overspeed;
+  if (speed > 0) return icons.moving;
   if (pos.acc_on) return icons.acc_on;
   return icons.stationary;
 }
@@ -78,22 +82,17 @@ export default function MapPage() {
 
   const posMap = new Map(positions.map((p) => [p.device_imei, p]));
 
-  // Filter devices by sector (if sector filtering is applicable)
+  // Filter devices by sector
   const filteredDevices = selectedSector === 'all'
     ? devices
-    : devices; // Sector filtering would require sector_id on DeviceCache
+    : devices.filter((d) => d.sector_id === Number(selectedSector));
 
-  const positionsToShow: GpsPosition[] = [];
-  for (const dev of filteredDevices) {
-    const pos = posMap.get(dev.imei);
-    if (pos) positionsToShow.push(pos);
-  }
-
-  // If no positions, show offline markers at default location
   const allMarkers = filteredDevices.map((dev) => ({
     device: dev,
     position: posMap.get(dev.imei),
   })).filter((m) => m.position);
+
+  const positionsToShow = allMarkers.map((m) => m.position!);
 
   if (loading) {
     return (
@@ -143,17 +142,10 @@ export default function MapPage() {
             <Marker
               key={device.imei}
               position={[position!.lat, position!.lon]}
-              icon={getIcon(position)}
+              icon={getIcon(position, device.over_speed ?? null)}
             >
               <Popup>
-                <div className="text-sm">
-                  <strong>{device.device_name || device.imei}</strong><br />
-                  IMEI: {device.imei}<br />
-                  {t('devices.plate')}: {device.plate_no || '—'}<br />
-                  {t('devices.driver')}: {device.driver_name || '—'}<br />
-                  {t('dashboard.moving')}: {position?.speed?.toFixed(1) || 0} km/h<br />
-                  {t('devices.last_seen')}: {position?.gps_time || device.last_online_time || '—'}
-                </div>
+                <DevicePopup device={device} pos={position!} />
               </Popup>
             </Marker>
           ))}
@@ -172,11 +164,15 @@ export default function MapPage() {
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
-          <span className="text-xs text-gray-600">{t('dashboard.offline')}</span>
+          <span className="text-xs text-gray-600">{t('status.overspeed')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-blue-500"></div>
           <span className="text-xs text-gray-600">{t('status.acc_on')}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-gray-500"></div>
+          <span className="text-xs text-gray-600">{t('dashboard.offline')}</span>
         </div>
       </div>
     </div>

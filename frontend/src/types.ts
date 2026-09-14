@@ -82,6 +82,24 @@ export interface GpsPosition {
   mask1: number | null;
   acc_on: boolean | null;
   warn_ids: number[] | null;
+  // extended fields from GpsTrackVo
+  angle: number | null;          // heading deg
+  altitude: number | null;       // meters
+  satellites: number | null;
+  gsm_signal: number | null;
+  ext_voltage: number | null;    // 0.01V units
+  bat_voltage: number | null;    // 0.01V units
+  fuel_liters: number | null;    // liters
+  validity: boolean | null;
+  device_name: string | null;
+  last_online_time: string | null;
+  // OBD
+  engine_rpm: number | null;
+  coolant_temp: number | null;  // °C
+  engine_load: number | null;    // %
+  fuel_level: string | null;
+  instant_fuel: number | null;  // L/h
+  obd_speed: number | null;     // km/h
   updated_at: string;
 }
 

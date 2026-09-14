@@ -188,5 +188,42 @@
     "data": "Data",
     "error": "Error communicating with the assistant. Please try again.",
     "welcome": "Hi! I'm your fleet assistant. I can help you query vehicle information, mileage, alarms, and speeding incidents. What would you like to know?"
+  },
+  "popup": {
+    "speed": "Speed",
+    "gps_time": "GPS time",
+    "telemetry": "Engine telemetry",
+    "device_gps": "Device & GPS",
+    "odometer": "Odometer",
+    "rpm": "Engine RPM",
+    "coolant": "Coolant temp",
+    "load": "Engine load",
+    "fuel": "Fuel (sensor)",
+    "fuel_level": "Fuel level (OBD)",
+    "instant_fuel": "Instant fuel rate",
+    "heading": "Heading",
+    "altitude": "Altitude",
+    "satellites": "Satellites",
+    "gsm": "GSM signal",
+    "ext_voltage": "External voltage",
+    "bat_voltage": "Internal battery",
+    "acc_unknown": "ACC unknown"
+  },
+  "alarms": {
+    "alarm_1017": "External power low battery",
+    "alarm_1018": "External power disconnected",
+    "alarm_1020": "Built-in battery low",
+    "alarm_1021": "GPS antenna removal",
+    "alarm_1022": "Overspeed",
+    "alarm_1025": "Geo-fence exit",
+    "alarm_1026": "Geo-fence entry",
+    "alarm_1027": "GPS signal loss",
+    "alarm_1033": "Device shutdown",
+    "alarm_1035": "Trailer alarm",
+    "alarm_1038": "Idling",
+    "alarm_1041": "Harsh turning",
+    "alarm_1042": "Impact/Collision",
+    "alarm_1043": "Fatigue driving",
+    "alarm_1045": "Overtime driving"
   }
 }

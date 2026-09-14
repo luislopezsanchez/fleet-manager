@@ -188,5 +188,42 @@
     "data": "Dados",
     "error": "Erro ao comunicar com o assistente. Tente novamente.",
     "welcome": "Olá! Sou seu assistente de frota. Posso ajudar a consultar informações sobre veículos, quilometragem, alarmes e excessos de velocidade. O que deseja saber?"
+  },
+  "popup": {
+    "speed": "Velocidade",
+    "gps_time": "Hora GPS",
+    "telemetry": "Telemetria do motor",
+    "device_gps": "Dispositivo e GPS",
+    "odometer": "Odômetro",
+    "rpm": "RPM do motor",
+    "coolant": "Refrigerante",
+    "load": "Carga do motor",
+    "fuel": "Combustível (sensor)",
+    "fuel_level": "Nível de combustível (OBD)",
+    "instant_fuel": "Consumo instantâneo",
+    "heading": "Direção",
+    "altitude": "Altitude",
+    "satellites": "Satélites",
+    "gsm": "Sinal GSM",
+    "ext_voltage": "Voltagem externa",
+    "bat_voltage": "Bateria interna",
+    "acc_unknown": "ACC desconhecido"
+  },
+  "alarms": {
+    "alarm_1017": "Bateria externa fraca",
+    "alarm_1018": "Alimentação externa desconectada",
+    "alarm_1020": "Bateria interna fraca",
+    "alarm_1021": "Remoção da antena GPS",
+    "alarm_1022": "Excesso de velocidade",
+    "alarm_1025": "Saída da cerca eletrônica",
+    "alarm_1026": "Entrada na cerca eletrônica",
+    "alarm_1027": "Perda de sinal GPS",
+    "alarm_1033": "Desligamento do dispositivo",
+    "alarm_1035": "Alarme de reboque",
+    "alarm_1038": "Ociosidade",
+    "alarm_1041": "Curva brusca",
+    "alarm_1042": "Impacto/Colisão",
+    "alarm_1043": "Direção com fadiga",
+    "alarm_1045": "Direção prolongada"
   }
 }

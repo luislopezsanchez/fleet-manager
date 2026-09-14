@@ -103,21 +103,41 @@ class DeviceCache(Base):
 
     sector: Mapped[Sector | None] = relationship()
 
+
 # ── GpsCache (latest GPS positions) ────────────────────────────────────────
 class GpsCache(Base):
     __tablename__ = "gps_cache"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[BigInteger] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     device_imei: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lon: Mapped[float] = mapped_column(Float, nullable=False)
-    speed: Mapped[float | None] = mapped_column(Float, nullable=True)
+    speed: Mapped[float | None] = mapped_column(Float, nullable=True)          # km/h
     gps_time: Mapped[str | None] = mapped_column(String(30), nullable=True)
-    odometer: Mapped[float | None] = mapped_column(Float, nullable=True)
+    odometer: Mapped[float | None] = mapped_column(Float, nullable=True)       # km
     status1: Mapped[int | None] = mapped_column(Integer, nullable=True)
     mask1: Mapped[int | None] = mapped_column(Integer, nullable=True)
     acc_on: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     warn_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # ── extended fields from GpsTrackVo ──
+    angle: Mapped[float | None] = mapped_column(Float, nullable=True)          # heading deg
+    altitude: Mapped[float | None] = mapped_column(Float, nullable=True)       # meters
+    satellites: Mapped[int | None] = mapped_column(Integer, nullable=True)     # quantity
+    gsm_signal: Mapped[int | None] = mapped_column(Integer, nullable=True)     # csqQuantity
+    ext_voltage: Mapped[int | None] = mapped_column(Float, nullable=True)      # 0.01V
+    bat_voltage: Mapped[float | None] = mapped_column(Float, nullable=True)    # 0.01V
+    fuel_liters: Mapped[float | None] = mapped_column(Float, nullable=True)    # liters
+    validity: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    device_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_online_time: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    # ── OBD (ObdDataDto) ──
+    engine_rpm: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    coolant_temp: Mapped[float | None] = mapped_column(Float, nullable=True)   # °C
+    engine_load: Mapped[float | None] = mapped_column(Float, nullable=True)    # %
+    fuel_level: Mapped[str | None] = mapped_column(String(20), nullable=True)  # OBD string
+    instant_fuel: Mapped[float | None] = mapped_column(Float, nullable=True)   # L/h
+    obd_speed: Mapped[int | None] = mapped_column(Integer, nullable=True)      # km/h
+    raw_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -127,7 +147,7 @@ class GpsCache(Base):
 class CommandLog(Base):
     __tablename__ = "command_logs"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[BigInteger] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -152,7 +172,7 @@ class CommandLog(Base):
 class Alert(Base):
     __tablename__ = "alerts"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[BigInteger] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     device_imei: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     alert_type: Mapped[str] = mapped_column(String(50), nullable=False)  # inactivity / speed / geofence / etc
     message: Mapped[str | None] = mapped_column(Text, nullable=True)

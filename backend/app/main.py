@@ -11,13 +11,63 @@ from app.database import Base, engine, async_session_factory
 from app.istarmap_client import get_istarmap_client
 from app.routers import alerts, assistant, auth, devices, ibuttons, reports, sectors, users
 from app.routers import settings as settings_router
+from app.routers.devices import sync_devices_into_db
 from app.services.alerts_engine import run_all_alerts
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Background scheduler task handle
+# Background scheduler task handles
 _alerts_task: asyncio.Task | None = None
+_sync_task: asyncio.Task | None = None
+
+DEVICE_SYNC_INTERVAL = 3600  # 1 hour
+
+
+async def _istarmap_login_or_none():
+    """Login to istarmap if credentials are configured. Returns client or None."""
+    client = get_istarmap_client()
+    username = settings.ISTARMAP_USERNAME or None
+    password = settings.ISTARMAP_PASSWORD or None
+    if username and password:
+        try:
+            await client.login(username, password)
+            return client
+        except Exception as exc:
+            logger.error("istarmap login failed: %s", exc)
+    return None
+
+
+async def _sync_devices_once(client) -> int:
+    """One device-cache sync pass. Returns synced count (0 on failure)."""
+    org_id = settings.ISTARMAP_ORG_ID
+    if not org_id:
+        return 0
+    try:
+        async with async_session_factory() as session:
+            try:
+                synced = await sync_devices_into_db(session, client, int(org_id))
+                await session.commit()
+                logger.info("Device sync: %d devices upserted into device_cache", synced)
+                return synced
+            except Exception:
+                await session.rollback()
+                raise
+    except Exception as exc:
+        logger.error("Device sync failed: %s", exc)
+        return 0
+
+
+async def _device_sync_loop():
+    """Keep device_cache in sync with istarmap every hour."""
+    client = await _istarmap_login_or_none()
+    if client is None:
+        logger.warning("Device sync disabled: istarmap credentials not configured")
+        return
+    logger.info("Device sync scheduler started — interval=%ds", DEVICE_SYNC_INTERVAL)
+    while True:
+        await _sync_devices_once(client)
+        await asyncio.sleep(DEVICE_SYNC_INTERVAL)
 
 
 async def _alerts_scheduler_loop():
@@ -27,16 +77,10 @@ async def _alerts_scheduler_loop():
         logger.warning("Alerts scheduler disabled: ISTARMAP_ORG_ID not configured")
         return
 
-    client = get_istarmap_client()
-    # Ensure the client is authenticated if credentials are available
-    username = settings.ISTARMAP_USERNAME or None
-    password = settings.ISTARMAP_PASSWORD or None
-    if username and password:
-        try:
-            await client.login(username, password)
-        except Exception as exc:
-            logger.error("Alerts scheduler: istarmap login failed: %s", exc)
-            return
+    client = await _istarmap_login_or_none()
+    if client is None:
+        logger.warning("Alerts scheduler disabled: istarmap login failed")
+        return
 
     logger.info("Alerts scheduler started — org_id=%s, interval=3600s", org_id)
 
@@ -59,28 +103,36 @@ async def _alerts_scheduler_loop():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: create tables, start alerts scheduler. Shutdown: cancel scheduler, dispose engine."""
-    global _alerts_task
+    """Startup: create tables, initial device sync, start schedulers. Shutdown: cancel them."""
+    global _alerts_task, _sync_task
 
     logger.info("Creating database tables (if not exist) …")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables ready.")
 
-    # Start background alerts scheduler
+    # Initial device sync (fills device_cache so KPIs/lists work from the start)
+    client = await _istarmap_login_or_none()
+    if client is not None:
+        await _sync_devices_once(client)
+
+    # Start background schedulers
+    _sync_task = asyncio.create_task(_device_sync_loop())
     _alerts_task = asyncio.create_task(_alerts_scheduler_loop())
 
     yield
 
-    # Cancel scheduler
-    if _alerts_task is not None:
-        _alerts_task.cancel()
-        try:
-            await _alerts_task
-        except asyncio.CancelledError:
-            pass
-        _alerts_task = None
-    logger.info("Alerts scheduler cancelled.")
+    # Cancel schedulers
+    for task in (_alerts_task, _sync_task):
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+    _alerts_task = None
+    _sync_task = None
+    logger.info("Schedulers cancelled.")
 
     logger.info("Disposing engine …")
     await engine.dispose()
@@ -89,7 +141,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Fleet Manager API",
     description="Sistema de Gestión y Monitoreo de Flota Vehicular",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
@@ -126,7 +178,7 @@ async def health():
 async def root():
     return {
         "name": "Fleet Manager API",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "docs": "/docs",
         "health": "/health",
     }

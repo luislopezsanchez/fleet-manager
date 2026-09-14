@@ -102,13 +102,31 @@ class GpsPosition(BaseModel):
     device_imei: str
     lat: float
     lon: float
-    speed: Optional[float] = None
+    speed: Optional[float] = None                 # km/h
     gps_time: Optional[str] = None
-    odometer: Optional[float] = None
+    odometer: Optional[float] = None              # km
     status1: Optional[int] = None
     mask1: Optional[int] = None
     acc_on: Optional[bool] = None
     warn_ids: Optional[List[int]] = None
+    # ── extended fields from GpsTrackVo ──
+    angle: Optional[float] = None                 # heading deg
+    altitude: Optional[float] = None              # meters
+    satellites: Optional[int] = None
+    gsm_signal: Optional[int] = None
+    ext_voltage: Optional[float] = None           # 0.01V units
+    bat_voltage: Optional[float] = None           # 0.01V units
+    fuel_liters: Optional[float] = None           # liters
+    validity: Optional[bool] = None
+    device_name: Optional[str] = None
+    last_online_time: Optional[str] = None
+    # ── OBD ──
+    engine_rpm: Optional[int] = None
+    coolant_temp: Optional[float] = None          # °C
+    engine_load: Optional[float] = None           # %
+    fuel_level: Optional[str] = None
+    instant_fuel: Optional[float] = None          # L/h
+    obd_speed: Optional[int] = None               # km/h
     updated_at: datetime
 
 

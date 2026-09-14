@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../api';
+import DevicePopup from '../components/DevicePopup';
 import type { DeviceListResponse, TrackResponse, GpsPosition, Device } from '../types';
 
 // Fix default icon issue with webpack/vite
@@ -25,11 +26,14 @@ const makeIcon = (color: string) =>
 const iconMoving = makeIcon('#22c55e');
 const iconStationary = makeIcon('#eab308');
 const iconAccOn = makeIcon('#3b82f6');
+const iconOverSpeed = makeIcon('#ef4444');
 
 const ORG_ID = 6128;
 
-function getMarkerIcon(pos: GpsPosition): L.DivIcon {
-  if (pos.speed && pos.speed > 0) return iconMoving;
+function getMarkerIcon(pos: GpsPosition, overSpeedLimit: number | null): L.DivIcon {
+  const speed = pos.speed ?? 0;
+  if (overSpeedLimit != null && speed > overSpeedLimit) return iconOverSpeed;
+  if (speed > 0) return iconMoving;
   if (pos.acc_on) return iconAccOn;
   return iconStationary;
 }
@@ -78,6 +82,7 @@ export default function DashboardPage() {
 
   // Calculate KPIs
   const deviceMap = new Map(devices.map((d) => [d.imei, d]));
+  const posMap = new Map(positions.map((p) => [p.device_imei, p]));
   const total = devices.length;
   let moving = 0;
   let stationary = 0;
@@ -85,15 +90,18 @@ export default function DashboardPage() {
   let overspeeding = 0;
 
   for (const dev of devices) {
-    const pos = positions.find((p) => p.device_imei === dev.imei);
+    const pos = posMap.get(dev.imei);
     if (!pos) {
       offline++;
       continue;
     }
-    if (pos.speed && pos.speed > 0) {
+    const speed = pos.speed ?? 0;
+    const overSpeedLimit = dev.over_speed ?? 80;
+    if (speed > overSpeedLimit) {
+      overspeeding++;
       moving++;
-      const overSpeedLimit = dev.over_speed || 80;
-      if (pos.speed > overSpeedLimit) overspeeding++;
+    } else if (speed > 0) {
+      moving++;
     } else {
       stationary++;
     }
@@ -171,16 +179,10 @@ export default function DashboardPage() {
                   <Marker
                     key={pos.device_imei}
                     position={[pos.lat, pos.lon]}
-                    icon={getMarkerIcon(pos)}
+                    icon={getMarkerIcon(pos, dev?.over_speed ?? null)}
                   >
                     <Popup>
-                      <div className="text-sm">
-                        <strong>{dev?.device_name || pos.device_imei}</strong><br />
-                        IMEI: {pos.device_imei}<br />
-                        {t('devices.plate')}: {dev?.plate_no || '—'}<br />
-                        {t('dashboard.moving')}: {pos.speed?.toFixed(1) || 0} km/h<br />
-                        {t('devices.last_seen')}: {pos.gps_time || '—'}
-                      </div>
+                      <DevicePopup device={dev} pos={pos} />
                     </Popup>
                   </Marker>
                 );

@@ -107,7 +107,9 @@
     "err_query": "Error en la consulta del reporte",
     "no_data": "Sin datos disponibles para este período",
     "rows": "filas",
-    "hint": "Elige un tipo de reporte, define el período y genera"
+    "hint": "Elige un tipo de reporte, define el período y genera",
+    "drv_step1": "Este reporte consulta el registro de asignaciones de conductores. Primero carga quién manejó cada vehículo con el botón",
+    "drv_step2": "después genera el reporte para ver qué conductor cubre el período elegido, junto con los eventos de geocerca del vehículo."
   },
   "ibuttons": {
     "title": "Gestión de iButtons",

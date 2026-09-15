@@ -107,7 +107,9 @@
     "err_query": "Erro na consulta do relatório",
     "no_data": "Sem dados disponíveis para este período",
     "rows": "linhas",
-    "hint": "Escolha um tipo de relatório, defina o período e gere"
+    "hint": "Escolha um tipo de relatório, defina o período e gere",
+    "drv_step1": "Este relatório consulta o registro de atribuições de motoristas. Primeiro registre quem dirigiu cada veículo com o botão",
+    "drv_step2": "depois gere o relatório para ver qual motorista cobre o período escolhido, junto com os eventos de geocerca do veículo."
   },
   "ibuttons": {
     "title": "Gestão de iButtons",

@@ -107,7 +107,9 @@
     "err_query": "Report query error",
     "no_data": "No data available for this period",
     "rows": "rows",
-    "hint": "Pick a report type, set the period and generate"
+    "hint": "Pick a report type, set the period and generate",
+    "drv_step1": "This report queries the driver assignment registry. First register who drove each vehicle with the button",
+    "drv_step2": "then generate the report to see which driver covers the selected period, along with the vehicle's geofence events."
   },
   "ibuttons": {
     "title": "iButton Management",

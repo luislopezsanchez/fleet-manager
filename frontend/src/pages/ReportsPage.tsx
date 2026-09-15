@@ -316,7 +316,7 @@ export default function ReportsPage() {
             )}
             {t('reports.generate')}
           </button>
-          {isAdmin && (
+          {isAdmin && reportType === 'drivers' && (
             <button onClick={openDrivers} className="bg-gray-800 hover:bg-gray-900 text-white font-semibold px-5 py-2 rounded-lg transition-colors text-sm">
               👤 {t('reports.manage_drivers')}
             </button>
@@ -331,6 +331,15 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+
+      {reportType === 'drivers' && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm mb-4 flex items-start gap-2">
+          <span className="font-semibold">ℹ️</span>
+          <div>
+            {t('reports.drv_step1')} <b>{t('reports.manage_drivers')}</b> — {t('reports.drv_step2')}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">{error}</div>

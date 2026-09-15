@@ -279,6 +279,8 @@
     "search_placeholder": "Search by name, driver, IMEI, plate, SIM, VIN or sector…",
     "all_statuses": "All statuses",
     "no_results": "No vehicle matches the search",
-    "info": "Vehicle Information"
+    "info": "Vehicle Information",
+    "speed": "Playback speed",
+    "downsampled": "Showing {{shown}} of {{total}} GPS points for smooth playback"
   }
 }

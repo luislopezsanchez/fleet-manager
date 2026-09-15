@@ -279,6 +279,8 @@
     "search_placeholder": "Buscar por nombre, conductor, IMEI, patente, SIM, VIN o sector…",
     "all_statuses": "Todos los estados",
     "no_results": "Ningún vehículo coincide con la búsqueda",
-    "info": "Información del Vehículo"
+    "info": "Información del Vehículo",
+    "speed": "Velocidad de reproducción",
+    "downsampled": "Mostrando {{shown}} de {{total}} puntos GPS para una reproducción fluida"
   }
 }

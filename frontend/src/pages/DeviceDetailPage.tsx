@@ -78,9 +78,11 @@ export default function DeviceDetailPage() {
   const [pbEnd, setPbEnd] = useState(toUTCInputValue(now));
   const [pbLoading, setPbLoading] = useState(false);
   const [pbError, setPbError] = useState('');
+  const [pbNotice, setPbNotice] = useState('');
   const [pbPoints, setPbPoints] = useState<HistoryPoint[]>([]);
   const [pbIndex, setPbIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [pbSpeed, setPbSpeed] = useState(1);
   const timerRef = useRef<number | null>(null);
 
   // commands state
@@ -131,15 +133,16 @@ export default function DeviceDetailPage() {
   // playback timer
   useEffect(() => {
     if (playing && pbPoints.length > 1) {
+      const step = Math.max(1, Math.round(pbSpeed * (pbPoints.length / 300))); // faster on long tracks
       timerRef.current = window.setInterval(() => {
         setPbIndex((i) => {
           if (i >= pbPoints.length - 1) {
             setPlaying(false);
             return i;
           }
-          return i + 1;
+          return Math.min(i + step, pbPoints.length - 1);
         });
-      }, 500);
+      }, 400);
     }
     return () => {
       if (timerRef.current) {
@@ -147,12 +150,13 @@ export default function DeviceDetailPage() {
         timerRef.current = null;
       }
     };
-  }, [playing, pbPoints.length]);
+  }, [playing, pbPoints.length, pbSpeed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPlayback = async () => {
     if (!imei) return;
     setPbLoading(true);
     setPbError('');
+    setPbNotice('');
     setPlaying(false);
     try {
       // istarmap requires yyyy-MM-ddTHH:mm:ssZ exactly — milliseconds cause a 400
@@ -163,10 +167,24 @@ export default function DeviceDetailPage() {
         end_time: fmt(pbEnd),
         filter_drift: true,
       });
-      setPbPoints(res.data.points);
+      const raw = res.data.points;
+      // Downsample very large tracks (e.g. 60k pts/week): rendering every point
+      // freezes the map. Keep endpoints, sample the rest, cap at ~1500.
+      const MAX_POINTS = 1500;
+      let pts = raw;
+      if (raw.length > MAX_POINTS) {
+        const step = raw.length / MAX_POINTS;
+        pts = Array.from({ length: MAX_POINTS }, (_, i) =>
+          raw[Math.round(i * step)]
+        );
+        if (pts[pts.length - 1] !== raw[raw.length - 1]) pts[pts.length - 1] = raw[raw.length - 1];
+      }
+      setPbPoints(pts);
       setPbIndex(0);
-      if (res.data.points.length === 0) {
+      if (raw.length === 0) {
         setPbError(t('vehicles.no_track'));
+      } else if (raw.length > MAX_POINTS) {
+        setPbNotice(t('vehicles.downsampled', { shown: pts.length, total: raw.length }));
       }
     } catch (err: any) {
       const detail = err?.response?.data?.detail || '';
@@ -365,9 +383,9 @@ export default function DeviceDetailPage() {
         </div>
 
         {/* Mini Map (live position) */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-2 flex flex-col">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('map.title')}</h2>
-          <div className="w-full h-80 rounded-lg overflow-hidden border border-gray-200">
+          <div className="w-full flex-1 min-h-[320px] rounded-lg overflow-hidden border border-gray-200">
             {position ? (
               <MapContainer
                 center={[position.lat, position.lon]}
@@ -472,6 +490,16 @@ export default function DeviceDetailPage() {
               >
                 ⏹ {t('vehicles.stop')}
               </button>
+              <select
+                value={pbSpeed}
+                onChange={(e) => setPbSpeed(Number(e.target.value))}
+                className="border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                title={t('vehicles.speed')}
+              >
+                {[1, 2, 4, 8, 16].map((s) => (
+                  <option key={s} value={s}>{s}×</option>
+                ))}
+              </select>
             </div>
           )}
         </div>
@@ -479,6 +507,12 @@ export default function DeviceDetailPage() {
         {pbError && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-sm mb-3">
             {pbError}
+          </div>
+        )}
+
+        {pbNotice && !pbError && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-600 px-3 py-2 rounded-lg text-xs mb-3">
+            {pbNotice}
           </div>
         )}
 

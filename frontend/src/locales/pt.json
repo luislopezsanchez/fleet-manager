@@ -279,6 +279,8 @@
     "search_placeholder": "Buscar por nome, motorista, IMEI, placa, SIM, VIN ou setor…",
     "all_statuses": "Todos os estados",
     "no_results": "Nenhum veículo corresponde à busca",
-    "info": "Informações do Veículo"
+    "info": "Informações do Veículo",
+    "speed": "Velocidade de reprodução",
+    "downsampled": "Mostrando {{shown}} de {{total}} pontos GPS para reprodução suave"
   }
 }

@@ -80,7 +80,8 @@ export default function DeviceDetailPage() {
   const [pbError, setPbError] = useState('');
   const [pbNotice, setPbNotice] = useState('');
   const [pbPoints, setPbPoints] = useState<HistoryPoint[]>([]);
-  const [pbIndex, setPbIndex] = useState(0);
+  const [pbIndex, setPbIndex] = useState(0);           // rendered/slider index (int)
+  const pbIndexF = useRef(0);                          // fractional playback position
   const [playing, setPlaying] = useState(false);
   const [pbSpeed, setPbSpeed] = useState(1);
   const timerRef = useRef<number | null>(null);
@@ -133,16 +134,20 @@ export default function DeviceDetailPage() {
   // playback timer
   useEffect(() => {
     if (playing && pbPoints.length > 1) {
-      const step = Math.max(1, Math.round(pbSpeed * (pbPoints.length / 300))); // faster on long tracks
+      // advance fractionally so the marker glides between (down-)sampled points
+      // instead of teleporting; ~1.5 rendered positions per tick at 1x
+      const step = Math.max(0.25, pbSpeed * Math.max(1, pbPoints.length / 1500) * 1.5);
       timerRef.current = window.setInterval(() => {
-        setPbIndex((i) => {
-          if (i >= pbPoints.length - 1) {
-            setPlaying(false);
-            return i;
-          }
-          return Math.min(i + step, pbPoints.length - 1);
-        });
-      }, 400);
+        const next = pbIndexF.current + step;
+        if (next >= pbPoints.length - 1) {
+          pbIndexF.current = pbPoints.length - 1;
+          setPbIndex(pbPoints.length - 1);
+          setPlaying(false);
+          return;
+        }
+        pbIndexF.current = next;
+        setPbIndex(Math.round(next));
+      }, 60);
     }
     return () => {
       if (timerRef.current) {
@@ -187,6 +192,7 @@ export default function DeviceDetailPage() {
       }
       setPbPoints(pts);
       setPbIndex(0);
+      pbIndexF.current = 0;
       if (raw.length === 0) {
         setPbError(t('vehicles.no_track'));
       } else if (raw.length > MAX_POINTS) {
@@ -274,7 +280,22 @@ export default function DeviceDetailPage() {
     );
   }
 
-  const current = pbPoints[pbIndex];
+  // interpolate marker position between sampled points for smooth motion
+  const i0 = Math.min(Math.floor(pbIndexF.current), pbPoints.length - 1);
+  const i1 = Math.min(i0 + 1, pbPoints.length - 1);
+  const frac = Math.min(Math.max(pbIndexF.current - i0, 0), 1);
+  const A = pbPoints[i0];
+  const B = pbPoints[i1];
+  const current: HistoryPoint | undefined = pbPoints.length ? {
+    lat: A.lat + (B.lat - A.lat) * frac,
+    lon: A.lon + (B.lon - A.lon) * frac,
+    speed: A.speed != null && B.speed != null ? (A.speed + B.speed) / 2 : (A.speed ?? B.speed),
+    gps_time: frac >= 0.5 ? B.gps_time : A.gps_time,
+    angle: B.angle ?? A.angle,
+    status1: A.status1, mask1: A.mask1,
+    odometer: A.odometer != null && B.odometer != null ? A.odometer + (B.odometer - A.odometer) * frac : (A.odometer ?? B.odometer),
+    satellites: A.satellites, ext_voltage: A.ext_voltage,
+  } : undefined;
   const lineCoords: [number, number][] = pbPoints.map((p) => [p.lat, p.lon]);
   // split polyline into segments by speed color
   const segments: { coords: [number, number][]; color: string }[] = [];
@@ -491,7 +512,7 @@ export default function DeviceDetailPage() {
                 {playing ? `⏸ ${t('vehicles.pause')}` : `▶ ${t('vehicles.play')}`}
               </button>
               <button
-                onClick={() => { setPlaying(false); setPbIndex(0); }}
+                onClick={() => { setPlaying(false); pbIndexF.current = 0; setPbIndex(0); }}
                 className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold px-3 py-2 rounded-lg text-sm"
               >
                 ⏹ {t('vehicles.stop')}
@@ -569,7 +590,7 @@ export default function DeviceDetailPage() {
                 min={0}
                 max={pbPoints.length - 1}
                 value={pbIndex}
-                onChange={(e) => { setPlaying(false); setPbIndex(Number(e.target.value)); }}
+                onChange={(e) => { setPlaying(false); pbIndexF.current = Number(e.target.value); setPbIndex(Number(e.target.value)); }}
                 className="w-full"
               />
               <span className="text-xs text-gray-500 whitespace-nowrap">

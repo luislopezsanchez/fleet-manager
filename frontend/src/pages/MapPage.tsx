@@ -116,13 +116,12 @@ export default function MapPage() {
     [devices, selectedSector]
   );
 
-  const allMarkers = filteredDevices.map((dev) => ({
-    device: dev,
-    position: posMap.get(dev.imei),
-  }));
-  const positionsToShow = allMarkers
-    .map((m) => m.position)
-    .filter((p): p is GpsPosition => !!p);
+  // Only devices WITH a current GPS fix get a marker (offline ones would
+  // crash the map reading position.lat)
+  const allMarkers = filteredDevices
+    .map((dev) => ({ device: dev, position: posMap.get(dev.imei) }))
+    .filter((m): m is { device: Device; position: GpsPosition } => !!m.position);
+  const positionsToShow = allMarkers.map((m) => m.position);
 
   // search results (across the filtered set)
   const q = search.trim().toLowerCase();
@@ -270,12 +269,12 @@ export default function MapPage() {
           {allMarkers.map(({ device, position }) => (
             <Marker
               key={device.imei}
-              position={[position!.lat, position!.lon]}
+              position={[position.lat, position.lon]}
               icon={getIcon(position, device.over_speed ?? null)}
               opacity={selected && device.imei !== selected.imei ? 0.35 : 1}
             >
               <Popup>
-                <DevicePopup device={device} pos={position!} />
+                <DevicePopup device={device} pos={position} />
               </Popup>
             </Marker>
           ))}

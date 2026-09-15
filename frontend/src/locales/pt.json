@@ -269,6 +269,9 @@
     "save": "Salvar alterações",
     "delete_confirm": "Remover o veículo '{name}' da frota? Ele continuará existindo no cloud istarmap e poderá ser re-adicionado por IMEI.",
     "deleted": "Veículo removido",
-    "updated": "Veículo atualizado"
+    "updated": "Veículo atualizado",
+    "search_placeholder": "Buscar por nome, motorista, IMEI, placa, SIM, VIN ou setor…",
+    "all_statuses": "Todos os estados",
+    "no_results": "Nenhum veículo corresponde à busca"
   }
 }

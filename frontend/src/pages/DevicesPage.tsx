@@ -48,6 +48,8 @@ export default function DevicesPage() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const [sectorFilter, setSectorFilter] = useState<number | ''>('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<DeviceStatus | ''>('');
   const [updatingImei, setUpdatingImei] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [addError, setAddError] = useState('');
@@ -214,6 +216,33 @@ export default function DevicesPage() {
     return sector?.name ?? null;
   };
 
+  // client-side search + status filter
+  const q = search.trim().toLowerCase();
+  const filteredDevices = devices.filter((d) => {
+    const pos = positions.get(d.imei);
+    if (statusFilter !== '') {
+      const st = calculateStatus(d, pos, !!pos);
+      if (st !== statusFilter) return false;
+    }
+    if (!q) return true;
+    return (
+      (d.device_name || '').toLowerCase().includes(q) ||
+      (d.driver_name || '').toLowerCase().includes(q) ||
+      d.imei.toLowerCase().includes(q) ||
+      (d.plate_no || '').toLowerCase().includes(q) ||
+      (d.sim || '').toLowerCase().includes(q) ||
+      (d.car_vin || '').toLowerCase().includes(q) ||
+      (getSectorName(d.sector_id) || '').toLowerCase().includes(q)
+    );
+  });
+
+  const statusCounts = devices.reduce((acc, d) => {
+    const pos = positions.get(d.imei);
+    const st = calculateStatus(d, pos, !!pos);
+    acc[st] = (acc[st] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -266,6 +295,49 @@ export default function DevicesPage() {
         </div>
       </div>
 
+      {/* Search + filters */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('vehicles.search_placeholder')}
+            className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+              title={t('common.cancel')}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value === '' ? '' : (e.target.value as DeviceStatus))}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+        >
+          <option value="">{t('vehicles.all_statuses')}</option>
+          {(['moving', 'stationary', 'acc_on', 'overspeed', 'offline'] as DeviceStatus[]).map((s) => (
+            <option key={s} value={s}>
+              {t(`status.${s}`)} ({statusCounts[s] || 0})
+            </option>
+          ))}
+        </select>
+        {(q || statusFilter !== '') && (
+          <span className="text-xs text-gray-500">
+            {filteredDevices.length}/{devices.length}
+          </span>
+        )}
+      </div>
+
       {/* Sector filter (admin only) */}
       {isAdmin && sectors.length > 0 && (
         <div className="mb-4 flex items-center gap-3">
@@ -296,7 +368,14 @@ export default function DevicesPage() {
       )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        {devices.length === 0 ? (
+        {devices.length > 0 && filteredDevices.length === 0 ? (
+          <div className="text-center py-12">
+            <svg className="w-10 h-10 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <p className="text-gray-500 text-sm">{t('vehicles.no_results')}</p>
+          </div>
+        ) : devices.length === 0 ? (
           <div className="text-center py-16">
             <svg className="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -320,7 +399,7 @@ export default function DevicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {devices.map((device) => {
+                {filteredDevices.map((device) => {
                   const pos = positions.get(device.imei);
                   const hasPos = !!pos;
                   const status = calculateStatus(device, pos, hasPos);

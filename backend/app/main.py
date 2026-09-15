@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import Base, engine, async_session_factory
 from app.istarmap_client import get_istarmap_client
-from app.routers import alerts, assistant, auth, devices, drivers, geofences, ibuttons, reports, sectors, users
+from app.routers import alerts, assistant, auth, devices, driver_registry, drivers, geofences, ibuttons, reports, sectors, users
 from app.routers import settings as settings_router
 from app.routers.devices import sync_devices_into_db
 from app.services.alerts_engine import run_all_alerts
@@ -166,6 +166,7 @@ app.include_router(ibuttons.router, prefix=api_prefix)
 app.include_router(assistant.router, prefix=api_prefix)
 app.include_router(geofences.router, prefix=api_prefix)
 app.include_router(drivers.router, prefix=api_prefix)
+app.include_router(driver_registry.router, prefix=api_prefix)
 app.include_router(settings_router.router, prefix=api_prefix)
 
 

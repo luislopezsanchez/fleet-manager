@@ -369,5 +369,45 @@ class DriverAssignmentResponse(BaseModel):
     created_at: datetime
 
 
+# ── Driver registry (iButton-bound drivers) ────────────────────────────────
+class DriverRegistryCreate(BaseModel):
+    full_name: str
+    ibutton_id: str = Field(min_length=2)
+    device_imei: Optional[str] = None
+    phone: Optional[str] = None
+    document: Optional[str] = None
+    expiry: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class DriverRegistryUpdate(BaseModel):
+    full_name: Optional[str] = None
+    ibutton_id: Optional[str] = None
+    device_imei: Optional[str] = None
+    phone: Optional[str] = None
+    document: Optional[str] = None
+    expiry: Optional[datetime] = None
+    notes: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class DriverRegistryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    full_name: str
+    ibutton_id: str
+    device_imei: Optional[str] = None
+    phone: Optional[str] = None
+    document: Optional[str] = None
+    card_type: str
+    expiry: Optional[datetime] = None
+    notes: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    device_name: Optional[str] = None
+
+
 # ── Forward refs ───────────────────────────────────────────────────────────
 TokenResponse.model_rebuild()

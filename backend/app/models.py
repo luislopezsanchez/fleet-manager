@@ -260,3 +260,24 @@ class DriverAssignment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+# ── DriverRegistry (conductor con iButton obligatorio) ──────────────────────
+class DriverRegistry(Base):
+    __tablename__ = "driver_registry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    ibutton_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    device_imei: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)  # vehicle currently using it
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    document: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    card_type: Mapped[str] = mapped_column(String(20), nullable=False, default="IBUTTON")
+    expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )

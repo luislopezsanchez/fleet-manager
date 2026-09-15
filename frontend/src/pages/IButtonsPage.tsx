@@ -1,379 +1,267 @@
-import { useState, useEffect, useCallback, useRef, DragEvent, ChangeEvent } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api';
-import type { DeviceListResponse, Device, CommandLog, CommandListResponse, BatchResult, UploadResult } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import type { DeviceListResponse, Device } from '../types';
 
-interface CsvRow {
-  vehicle_imei: string;
+interface DriverRegistry {
+  id: number;
+  full_name: string;
   ibutton_id: string;
+  device_imei: string | null;
+  device_name: string | null;
+  phone: string | null;
+  document: string | null;
+  card_type: string;
+  expiry: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-const statusColors: Record<string, string> = {
-  pending: 'bg-gray-100 text-gray-600',
-  sent: 'bg-blue-100 text-blue-700',
-  confirmed: 'bg-green-100 text-green-700',
-  failed: 'bg-red-100 text-red-700',
-};
-
-function parseCsv(text: string): CsvRow[] {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
-  const imeiIdx = headers.indexOf('vehicle_imei');
-  const ibuttonIdx = headers.indexOf('ibutton_id');
-  if (imeiIdx === -1 || ibuttonIdx === -1) return [];
-
-  const rows: CsvRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',');
-    const imei = cols[imeiIdx]?.trim();
-    const ibuttonId = cols[ibuttonIdx]?.trim();
-    if (imei && ibuttonId) rows.push({ vehicle_imei: imei, ibutton_id: ibuttonId });
-  }
-  return rows;
+interface CommandLog {
+  id: number;
+  device_imei: string;
+  command_type: number;
+  ibutton_id: string | null;
+  status: string;
+  created_at: string;
 }
+
+const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none';
 
 export default function IButtonsPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
+  const [drivers, setDrivers] = useState<DriverRegistry[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
-  const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
-  const [csvFileName, setCsvFileName] = useState('');
-  const [dragging, setDragging] = useState(false);
-  const [executing, setExecuting] = useState(false);
-  const [batchIbuttonId, setBatchIbuttonId] = useState('');
-  const [selectedImeis, setSelectedImeis] = useState<Set<string>>(new Set());
-  const [batchResult, setBatchResult] = useState<BatchResult | null>(null);
-  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [commands, setCommands] = useState<CommandLog[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [notice, setNotice] = useState('');
+  const [search, setSearch] = useState('');
 
-  const loadDevices = useCallback(async () => {
-    try {
-      const res = await api.get<DeviceListResponse>('/devices/');
-      setDevices(res.data.devices);
-    } catch {
-      // silent
-    }
-  }, []);
+  // form modal (create/edit)
+  const [showForm, setShowForm] = useState(false);
+  const [editDriver, setEditDriver] = useState<DriverRegistry | null>(null);
+  const [form, setForm] = useState({ full_name: '', ibutton_id: '', device_imei: '', phone: '', document: '', expiry: '', notes: '' });
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const loadCommands = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await api.get<CommandListResponse>('/ibuttons/commands', {
-        params: { limit: 50 },
-      });
-      setCommands(res.data.commands);
+      const [drvRes, devRes] = await Promise.all([
+        api.get<DriverRegistry[]>('/ibuttons/drivers/', { params: { include_inactive: true } }),
+        api.get<DeviceListResponse>('/devices/'),
+      ]);
+      setDrivers(drvRes.data);
+      setDevices(devRes.data.devices);
+      setError('');
     } catch {
-      // silent
+      setError(t('common.error'));
+    } finally {
+      setLoading(false);
     }
+  }, [t]);
+
+  const fetchCommands = useCallback(async () => {
+    try {
+      const res = await api.get('/ibuttons/commands', { params: { limit: 15 } });
+      setCommands(res.data.commands || res.data);
+    } catch { /* commands log optional */ }
   }, []);
 
   useEffect(() => {
-    loadDevices();
-    loadCommands();
-  }, [loadDevices, loadCommands]);
+    fetchData();
+    fetchCommands();
+  }, [fetchData, fetchCommands]);
 
-  const handleFile = (file: File) => {
-    setCsvFileName(file.name);
-    setError('');
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const rows = parseCsv(text);
-      if (rows.length === 0) {
-        setError('CSV must have columns: vehicle_imei, ibutton_id');
-        setCsvRows([]);
-        return;
-      }
-      setCsvRows(rows);
-    };
-    reader.readAsText(file);
+  const openCreate = () => {
+    setEditDriver(null);
+    setForm({ full_name: '', ibutton_id: '', device_imei: '', phone: '', document: '', expiry: '', notes: '' });
+    setFormError('');
+    setShowForm(true);
   };
 
-  const handleFileInput = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
-  };
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  };
-
-  const handleExecuteUpload = async () => {
-    if (csvRows.length === 0) return;
-    setExecuting(true);
-    setError('');
-    setSuccess('');
-    setUploadResult(null);
-    try {
-      const csvText = csvRows.map((r) => `${r.vehicle_imei},${r.ibutton_id}`).join('\n');
-      const csvContent = `vehicle_imei,ibutton_id\n${csvText}`;
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const formData = new FormData();
-      formData.append('file', blob, csvFileName || 'ibuttons.csv');
-
-      const res = await api.post<UploadResult>('/ibuttons/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setUploadResult(res.data);
-      setSuccess(`Processed ${res.data.processed} rows — ${res.data.succeeded} succeeded, ${res.data.failed} failed`);
-      setCsvRows([]);
-      setCsvFileName('');
-      loadCommands();
-    } catch (err) {
-      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || t('common.error');
-      setError(msg);
-    } finally {
-      setExecuting(false);
-    }
-  };
-
-  const handleToggleImei = (imei: string) => {
-    setSelectedImeis((prev) => {
-      const next = new Set(prev);
-      if (next.has(imei)) next.delete(imei);
-      else next.add(imei);
-      return next;
+  const openEdit = (d: DriverRegistry) => {
+    setEditDriver(d);
+    setForm({
+      full_name: d.full_name,
+      ibutton_id: d.ibutton_id,
+      device_imei: d.device_imei || '',
+      phone: d.phone || '',
+      document: d.document || '',
+      expiry: d.expiry ? d.expiry.slice(0, 10) : '',
+      notes: d.notes || '',
     });
+    setFormError('');
+    setShowForm(true);
   };
 
-  const handleBatchAction = async (action: 'add' | 'remove') => {
-    if (selectedImeis.size === 0 || !batchIbuttonId) {
-      setError('Select devices and enter iButton ID');
+  const saveDriver = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    if (!form.full_name.trim() || !form.ibutton_id.trim()) {
+      setFormError(t('ibuttons.drv_required'));
       return;
     }
-    setExecuting(true);
-    setError('');
-    setSuccess('');
-    setBatchResult(null);
+    setSaving(true);
     try {
-      const operations = Array.from(selectedImeis).map((imei) => ({
-        imei,
-        ibutton_id: batchIbuttonId,
-        action,
-      }));
-      const res = await api.post<BatchResult>('/ibuttons/batch', { operations });
-      setBatchResult(res.data);
-      setSuccess(`${res.data.succeeded}/${res.data.total} commands succeeded`);
-      setSelectedImeis(new Set());
-      setBatchIbuttonId('');
-      loadCommands();
-    } catch (err) {
-      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail || t('common.error');
-      setError(msg);
+      const payload: Record<string, unknown> = {
+        full_name: form.full_name.trim(),
+        ibutton_id: form.ibutton_id.trim(),
+        device_imei: form.device_imei || null,
+        phone: form.phone || null,
+        document: form.document || null,
+        expiry: form.expiry ? new Date(form.expiry + 'T12:00:00Z').toISOString().replace(/\.\d+/, '') : null,
+        notes: form.notes || null,
+      };
+      if (editDriver) {
+        await api.put(`/ibuttons/drivers/${editDriver.id}`, payload);
+        setNotice(t('ibuttons.drv_updated'));
+      } else {
+        await api.post('/ibuttons/drivers/', payload);
+        setNotice(t('ibuttons.drv_created'));
+      }
+      setShowForm(false);
+      await fetchData();
+      await fetchCommands();
+      setTimeout(() => setNotice(''), 3000);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      setFormError(typeof detail === 'string' ? detail : t('common.error'));
     } finally {
-      setExecuting(false);
+      setSaving(false);
     }
   };
+
+  const removeDriver = async (d: DriverRegistry) => {
+    if (!window.confirm(t('ibuttons.drv_delete_confirm', { name: d.full_name }))) return;
+    try {
+      await api.delete(`/ibuttons/drivers/${d.id}`);
+      setNotice(t('ibuttons.drv_deleted'));
+      await fetchData();
+      await fetchCommands();
+      setTimeout(() => setNotice(''), 3000);
+    } catch {
+      setError(t('common.error'));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const q = search.trim().toLowerCase();
+  const filtered = drivers.filter(
+    (d) =>
+      !q ||
+      d.full_name.toLowerCase().includes(q) ||
+      d.ibutton_id.toLowerCase().includes(q) ||
+      (d.device_name || '').toLowerCase().includes(q)
+  );
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">{t('ibuttons.title')}</h1>
-        <p className="text-gray-500 mt-1">{t('ibuttons.subtitle')}</p>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
-          {error}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">{t('ibuttons.title')}</h1>
+          <p className="text-gray-500 mt-1">{t('ibuttons.subtitle')}</p>
         </div>
-      )}
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg text-sm mb-4">
-          {success}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* CSV Upload Zone */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('ibuttons.csv_upload')}</h2>
-
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              dragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-            }`}
-          >
-            <svg className="w-10 h-10 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <p className="text-sm text-gray-600">
-              {csvFileName || 'Drop CSV here or click to browse'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">Columns: vehicle_imei, ibutton_id</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.txt"
-              onChange={handleFileInput}
-              className="hidden"
-            />
-          </div>
-
-          {/* CSV Preview */}
-          {csvRows.length > 0 && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-600 mb-2">{csvRows.length} rows preview:</p>
-              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
-                <table className="w-full">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">vehicle_imei</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">ibutton_id</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {csvRows.slice(0, 50).map((row, i) => (
-                      <tr key={i}>
-                        <td className="px-3 py-2 text-sm text-gray-700 font-mono">{row.vehicle_imei}</td>
-                        <td className="px-3 py-2 text-sm text-gray-700 font-mono">{row.ibutton_id}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <button
-                onClick={handleExecuteUpload}
-                disabled={executing}
-                className="mt-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-5 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
-              >
-                {executing ? (
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : null}
-                {t('ibuttons.execute')}
-              </button>
-            </div>
-          )}
-
-          {uploadResult && (
-            <div className="mt-3 text-sm text-gray-600">
-              <span className="font-medium">Result:</span> {uploadResult.succeeded} succeeded, {uploadResult.failed} failed, {uploadResult.total_rows} total
-            </div>
-          )}
-        </div>
-
-        {/* Batch Operations */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('ibuttons.batch')}</h2>
-
-          {/* Device selection */}
-          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg mb-4">
-            <table className="w-full">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 w-8"></th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Device</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">IMEI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {devices.slice(0, 100).map((dev) => (
-                  <tr
-                    key={dev.imei}
-                    onClick={() => handleToggleImei(dev.imei)}
-                    className={`cursor-pointer hover:bg-gray-50 ${selectedImeis.has(dev.imei) ? 'bg-blue-50' : ''}`}
-                  >
-                    <td className="px-3 py-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedImeis.has(dev.imei)}
-                        onChange={() => handleToggleImei(dev.imei)}
-                        className="rounded"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-sm text-gray-700">{dev.device_name || dev.imei}</td>
-                    <td className="px-3 py-2 text-sm text-gray-600 font-mono">{dev.imei}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              value={batchIbuttonId}
-              onChange={(e) => setBatchIbuttonId(e.target.value)}
-              placeholder="iButton ID"
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            />
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('common.search')}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+          {isAdmin && (
             <button
-              onClick={() => handleBatchAction('add')}
-              disabled={executing || !batchIbuttonId || selectedImeis.size === 0}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm"
+              onClick={openCreate}
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 text-sm"
             >
-              {t('ibuttons.add')}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              {t('ibuttons.drv_add')}
             </button>
-            <button
-              onClick={() => handleBatchAction('remove')}
-              disabled={executing || !batchIbuttonId || selectedImeis.size === 0}
-              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm"
-            >
-              {t('ibuttons.remove')}
-            </button>
-          </div>
-
-          {selectedImeis.size > 0 && (
-            <p className="text-sm text-gray-500 mt-2">{selectedImeis.size} devices selected</p>
-          )}
-
-          {batchResult && (
-            <div className="mt-3 text-sm text-gray-600">
-              <span className="font-medium">Result:</span> {batchResult.succeeded}/{batchResult.total} succeeded
-            </div>
           )}
         </div>
       </div>
 
-      {/* Commands Log */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-700">{t('ibuttons.commands_log')}</h2>
-        </div>
-        {commands.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-sm">No commands sent yet</p>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">{error}</div>
+      )}
+      {notice && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm mb-4">{notice}</div>
+      )}
+
+      {/* concept explanation */}
+      <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm mb-4">
+        💡 {t('ibuttons.drv_concept')}
+      </div>
+
+      {/* drivers table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+        {filtered.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-gray-500 text-sm">{t('ibuttons.drv_empty')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">ID</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">IMEI</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Cmd</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">iButton ID</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('ibuttons.status')}</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">{t('ibuttons.drv_name')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">iButton ID</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">{t('ibuttons.drv_vehicle')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">{t('ibuttons.drv_phone')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">{t('ibuttons.drv_expiry')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">{t('devices.status')}</th>
+                  {isAdmin && <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">{t('common.actions')}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {commands.map((cmd) => (
-                  <tr key={cmd.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-gray-600">{cmd.id}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 font-mono">{cmd.device_imei}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{cmd.command_type}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 font-mono">{cmd.ibutton_id || '—'}</td>
+                {filtered.map((d) => (
+                  <tr key={d.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-800">
+                      {d.full_name}
+                      {d.document && <span className="text-gray-400 text-xs ml-2">{d.document}</span>}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-mono text-gray-600">{d.ibutton_id}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{d.device_name || d.device_imei || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{d.phone || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{d.expiry ? new Date(d.expiry).toLocaleDateString() : '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[cmd.status] || statusColors.pending}`}>
-                        {t(`ibuttons.${cmd.status}`)}
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        d.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {d.is_active ? t('users.active') : t('users.inactive')}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {new Date(cmd.created_at).toLocaleString()}
-                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openEdit(d)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600" title={t('vehicles.edit')}>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button onClick={() => removeDriver(d)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-600" title={t('common.delete')}>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -381,6 +269,116 @@ export default function IButtonsPage() {
           </div>
         )}
       </div>
+
+      {/* command log */}
+      {commands.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <h2 className="text-sm font-semibold text-gray-700">{t('ibuttons.commands_log')}</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600 uppercase">Fecha</th>
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600 uppercase">{t('ibuttons.drv_name')}</th>
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600 uppercase">iButton</th>
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600 uppercase">Cmd</th>
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-600 uppercase">{t('devices.status')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {commands.map((c) => (
+                  <tr key={c.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-sm text-gray-600">{new Date(c.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-2 text-sm text-gray-600 font-mono">{c.device_imei}</td>
+                    <td className="px-4 py-2 text-sm text-gray-600 font-mono">{c.ibutton_id || '—'}</td>
+                    <td className="px-4 py-2 text-sm text-gray-600">
+                      {c.command_type === 144 ? `➕ ${t('ibuttons.add')}` : c.command_type === 145 ? `➖ ${t('ibuttons.remove')}` : c.command_type}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        c.status === 'sent' || c.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                        c.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {t(`ibuttons.${c.status}`) || c.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* create/edit modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowForm(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-gray-800 mb-4">
+              {editDriver ? t('ibuttons.drv_edit') : t('ibuttons.drv_add')}
+            </h2>
+            {formError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm mb-3">{formError}</div>
+            )}
+            <form onSubmit={saveDriver} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {t('ibuttons.drv_name')} <span className="text-red-500">*</span>
+                  </label>
+                  <input className={inputCls} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} autoFocus required />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    iButton ID <span className="text-red-500">*</span>
+                  </label>
+                  <input className={inputCls} value={form.ibutton_id} onChange={(e) => setForm({ ...form, ibutton_id: e.target.value.trim() })} placeholder="A1B2C3..." required />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('ibuttons.drv_vehicle')}</label>
+                  <select className={inputCls} value={form.device_imei} onChange={(e) => setForm({ ...form, device_imei: e.target.value })}>
+                    <option value="">— {t('ibuttons.drv_no_vehicle')} —</option>
+                    {devices.map((d) => (
+                      <option key={d.imei} value={d.imei}>{d.device_name || d.imei}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">{t('ibuttons.drv_vehicle_hint')}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('ibuttons.drv_phone')}</label>
+                  <input className={inputCls} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('ibuttons.drv_doc')}</label>
+                  <input className={inputCls} value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('ibuttons.drv_expiry')}</label>
+                  <input type="date" className={inputCls} value={form.expiry} onChange={(e) => setForm({ ...form, expiry: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Card Reader</label>
+                  <input className={`${inputCls} bg-gray-50 text-gray-500`} value="IBUTTON" disabled />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('ibuttons.drv_notes')}</label>
+                  <textarea className={inputCls} rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+                  {saving ? t('common.loading') : t('common.save')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

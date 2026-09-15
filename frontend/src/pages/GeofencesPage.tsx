@@ -394,10 +394,10 @@ export default function GeofencesPage() {
         </div>
       </div>
 
-      {/* Create form modal */}
+      {/* Create form: side panel (does not cover the map/draft) */}
       {showForm && draft && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => { setShowForm(false); setDraft(null); setDrawMode('none'); }}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed right-4 top-20 bottom-4 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-[1100] flex flex-col overflow-y-auto">
+          <div className="p-5">
             <h2 className="text-lg font-bold text-gray-800 mb-4">{t('geofences.create_title')}</h2>
             {formError && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm mb-3">{formError}</div>

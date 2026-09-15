@@ -68,7 +68,7 @@ export default function GeofencesPage() {
   const [color, setColor] = useState('#3b82f6');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const radiusInputRef = useRef<number>(300);
+  const radiusInputRef = useRef<number>(20);
 
   const fetchData = useCallback(async () => {
     try {
@@ -228,7 +228,7 @@ export default function GeofencesPage() {
             : t('geofences.hint_polygon')}
           {drawMode === 'circle' && (
             <span className="ml-3 inline-flex items-center gap-2">
-              {t('geofences.radius')}: <input type="number" defaultValue={radiusInputRef.current} min={50}
+              {t('geofences.radius')}: <input type="number" defaultValue={radiusInputRef.current} min={1}
                 onChange={(e) => onRadiusChange(Number(e.target.value))}
                 className="w-24 border border-blue-300 rounded px-2 py-0.5 text-sm" /> m
             </span>
@@ -416,12 +416,18 @@ export default function GeofencesPage() {
                   <label className="block text-xs font-medium text-gray-600 mb-1">{t('geofences.radius')}</label>
                   <div className="flex items-center gap-2">
                     <input
-                      type="range" min={50} max={3000} step={50}
-                      value={draft.radius_m || 300}
+                      type="range" min={1} max={200} step={1}
+                      value={draft.radius_m || 20}
                       onChange={(e) => onRadiusChange(Number(e.target.value))}
                       className="flex-1"
                     />
-                    <span className="text-sm text-gray-700 w-20 text-right">{draft.radius_m || 300} m</span>
+                    <input
+                      type="number" min={1} max={200}
+                      value={draft.radius_m || 20}
+                      onChange={(e) => onRadiusChange(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
+                      className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-sm text-right"
+                    />
+                    <span className="text-sm text-gray-700">m</span>
                   </div>
                 </div>
               )}

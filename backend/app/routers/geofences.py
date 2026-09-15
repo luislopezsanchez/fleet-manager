@@ -31,6 +31,8 @@ def _validate_create(body: GeofenceCreate) -> None:
             raise HTTPException(400, detail="circle geofence requires center_lat, center_lon and radius_m")
         if body.radius_m <= 0:
             raise HTTPException(400, detail="radius_m must be > 0")
+        if body.radius_m > 200:
+            raise HTTPException(400, detail="radius_m must be <= 200 m (current policy)")
     else:
         if not body.polygon or len(body.polygon) < 3:
             raise HTTPException(400, detail="polygon geofence requires at least 3 points")

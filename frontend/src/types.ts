@@ -218,3 +218,32 @@ export interface TermCtrlResponse {
   result: string | null;   // SUCCESS | OFF_LINE | FAIL
   message: string | null;
 }
+
+export interface Geofence {
+  id: number;
+  name: string;
+  description: string | null;
+  shape: 'circle' | 'polygon';
+  center_lat: number | null;
+  center_lon: number | null;
+  radius_m: number | null;
+  polygon: number[][] | null;
+  color: string;
+  alert_on: 'entry' | 'exit' | 'both';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GeofenceEvent {
+  id: number;
+  device_imei: string;
+  geofence_id: number;
+  event_type: 'entry' | 'exit';
+  lat: number;
+  lon: number;
+  speed: number | null;
+  created_at: string;
+  geofence_name: string | null;
+  device_name: string | null;
+}

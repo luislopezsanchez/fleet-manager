@@ -12,6 +12,7 @@ import AlertsPage from './pages/AlertsPage';
 import SettingsPage from './pages/SettingsPage';
 import UsersPage from './pages/UsersPage';
 import AssistantPage from './pages/AssistantPage';
+import GeofencesPage from './pages/GeofencesPage';
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="ibuttons" element={<IButtonsPage />} />
         <Route path="alerts" element={<AlertsPage />} />
+        <Route path="geofences" element={<GeofencesPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="assistant" element={<AssistantPage />} />

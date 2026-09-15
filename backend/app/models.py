@@ -201,3 +201,47 @@ class SystemConfig(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+# ── Geofence (local, evaluated on each tracker poll) ───────────────────────
+class Geofence(Base):
+    __tablename__ = "geofences"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    shape: Mapped[str] = mapped_column(String(20), nullable=False, default="circle")  # circle | polygon
+    # circle fields
+    center_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    center_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    radius_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # polygon: list of [lat, lon] pairs
+    polygon: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    color: Mapped[str] = mapped_column(String(20), nullable=False, default="#3b82f6")
+    alert_on: Mapped[str] = mapped_column(String(10), nullable=False, default="both")  # entry | exit | both
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class GeofenceEvent(Base):
+    __tablename__ = "geofence_events"
+
+    id: Mapped[BigInteger] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    device_imei: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    geofence_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("geofences.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event_type: Mapped[str] = mapped_column(String(10), nullable=False)  # entry | exit
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lon: Mapped[float] = mapped_column(Float, nullable=False)
+    speed: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    geofence: Mapped["Geofence"] = relationship()

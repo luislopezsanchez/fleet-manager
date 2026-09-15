@@ -288,5 +288,61 @@ class CommandResultResponse(BaseModel):
     raw: Optional[dict[str, Any]] = None
 
 
+# ── Geofences ───────────────────────────────────────────────────────────────
+class GeofenceCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    shape: str  # circle | polygon
+    center_lat: Optional[float] = None
+    center_lon: Optional[float] = None
+    radius_m: Optional[float] = None
+    polygon: Optional[List[List[float]]] = None  # [[lat, lon], ...]
+    color: str = "#3b82f6"
+    alert_on: str = "both"  # entry | exit | both
+    is_active: bool = True
+
+
+class GeofenceUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+    alert_on: Optional[str] = None
+    is_active: Optional[bool] = None
+    radius_m: Optional[float] = None
+
+
+class GeofenceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: Optional[str] = None
+    shape: str
+    center_lat: Optional[float] = None
+    center_lon: Optional[float] = None
+    radius_m: Optional[float] = None
+    polygon: Optional[List[List[float]]] = None
+    color: str
+    alert_on: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class GeofenceEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    device_imei: str
+    geofence_id: int
+    event_type: str
+    lat: float
+    lon: float
+    speed: Optional[float] = None
+    created_at: datetime
+    geofence_name: Optional[str] = None
+    device_name: Optional[str] = None
+
+
 # ── Forward refs ───────────────────────────────────────────────────────────
 TokenResponse.model_rebuild()

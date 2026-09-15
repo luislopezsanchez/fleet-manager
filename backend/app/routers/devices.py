@@ -11,6 +11,7 @@ from app.auth import get_current_user, role_required
 from app.database import get_db
 from app.istarmap_client import IstarmapClient, get_authenticated_istarmap_client
 from app.models import DeviceCache, GpsCache, User, UserRole
+from app.services.geofence_engine import evaluate_positions
 from app.schemas import (
     CommandResultResponse,
     DeviceListResponse,
@@ -402,6 +403,16 @@ async def track_devices(
         await db.flush()
         await db.refresh(gps)
         positions.append(GpsPosition.model_validate(gps))
+
+    # evaluate geofence transitions for every fresh position (entry/exit
+    # detection creates events + alerts; session committed by FastAPI)
+    try:
+        await evaluate_positions(
+            db,
+            [(p.device_imei, p.lat, p.lon, p.speed) for p in positions],
+        )
+    except Exception as exc:
+        logger.error("Geofence evaluation failed: %s", exc)
 
     return TrackResponse(
         total=len(positions),

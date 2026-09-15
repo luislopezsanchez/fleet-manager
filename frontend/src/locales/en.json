@@ -23,7 +23,8 @@
     "logout": "Logout",
     "assistant": "AI Assistant",
     "users": "Users",
-    "vehicles": "Vehicles"
+    "vehicles": "Vehicles",
+    "geofences": "Geofences"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -289,5 +290,39 @@
     "subtitle": "Live fleet tracking",
     "all_sectors": "All sectors",
     "clear_focus": "Clear focus"
+  },
+  "geofences": {
+    "title": "Geofences",
+    "subtitle": "Virtual zones with entry/exit alerts",
+    "draw_none": "No drawing",
+    "draw_circle": "Draw circle",
+    "draw_polygon": "Draw polygon",
+    "hint_circle": "Click the map to place the geofence center",
+    "hint_polygon": "Click the map to add vertices (min 3)",
+    "finish_polygon": "Finish",
+    "radius": "Radius",
+    "color": "Color",
+    "name_label": "Name",
+    "name_placeholder": "e.g. Central Depot",
+    "name_required": "Name is required",
+    "need_points": "You need at least 3 points",
+    "desc_label": "Description",
+    "alert_on_label": "Alert on",
+    "alert_both": "Entry and exit",
+    "alert_entry_only": "Entry only",
+    "alert_exit_only": "Exit only",
+    "alert_entry": "Entry",
+    "alert_exit": "Exit",
+    "alert_both_s": "Entry/Exit",
+    "create_title": "New Geofence",
+    "created": "Geofence created",
+    "deleted": "Geofence deleted",
+    "delete_confirm": "Delete geofence \"{name}\" and all its event history?",
+    "list_title": "Geofences",
+    "empty": "No geofences — draw one on the map",
+    "events_title": "Recent events",
+    "no_events": "No events yet — they are generated when a vehicle crosses a geofence",
+    "entry": "Entry",
+    "exit": "Exit"
   }
 }

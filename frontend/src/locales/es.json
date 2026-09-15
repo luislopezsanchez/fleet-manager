@@ -23,7 +23,8 @@
     "logout": "Cerrar Sesión",
     "assistant": "Asistente IA",
     "users": "Usuarios",
-    "vehicles": "Vehículos"
+    "vehicles": "Vehículos",
+    "geofences": "Geocercas"
   },
   "dashboard": {
     "title": "Panel Principal",
@@ -289,5 +290,39 @@
     "subtitle": "Seguimiento en vivo de la flota",
     "all_sectors": "Todos los sectores",
     "clear_focus": "Quitar foco"
+  },
+  "geofences": {
+    "title": "Geocercas",
+    "subtitle": "Zonas virtuales con alertas de entrada y salida",
+    "draw_none": "Sin dibujo",
+    "draw_circle": "Dibujar círculo",
+    "draw_polygon": "Dibujar polígono",
+    "hint_circle": "Haz clic en el mapa para colocar el centro de la geocerca",
+    "hint_polygon": "Haz clic en el mapa para añadir vértices (mínimo 3)",
+    "finish_polygon": "Terminar",
+    "radius": "Radio",
+    "color": "Color",
+    "name_label": "Nombre",
+    "name_placeholder": "Ej: Depósito Central",
+    "name_required": "El nombre es obligatorio",
+    "need_points": "Necesitas al menos 3 puntos",
+    "desc_label": "Descripción",
+    "alert_on_label": "Alertar en",
+    "alert_both": "Entrada y salida",
+    "alert_entry_only": "Solo entrada",
+    "alert_exit_only": "Solo salida",
+    "alert_entry": "Entrada",
+    "alert_exit": "Salida",
+    "alert_both_s": "Entrada/Salida",
+    "create_title": "Nueva Geocerca",
+    "created": "Geocerca creada",
+    "deleted": "Geocerca eliminada",
+    "delete_confirm": "¿Eliminar la geocerca \"{name}\" y todo su historial de eventos?",
+    "list_title": "Geocercas",
+    "empty": "Sin geocercas — dibuja una en el mapa",
+    "events_title": "Eventos recientes",
+    "no_events": "Sin eventos todavía — se generan cuando un vehículo cruza una geocerca",
+    "entry": "Entrada",
+    "exit": "Salida"
   }
 }

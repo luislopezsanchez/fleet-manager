@@ -323,6 +323,7 @@
     "events_title": "Eventos recentes",
     "no_events": "Sem eventos ainda — gerados quando um veículo cruza uma geocerca",
     "entry": "Entrada",
-    "exit": "Saída"
+    "exit": "Saída",
+    "moved": "Geocerca movida"
   }
 }

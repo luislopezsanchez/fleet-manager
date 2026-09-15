@@ -309,6 +309,8 @@ class GeofenceUpdate(BaseModel):
     alert_on: Optional[str] = None
     is_active: Optional[bool] = None
     radius_m: Optional[float] = None
+    center_lat: Optional[float] = None
+    center_lon: Optional[float] = None
 
 
 class GeofenceResponse(BaseModel):

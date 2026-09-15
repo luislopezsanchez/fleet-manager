@@ -95,6 +95,11 @@ async def update_geofence(
         raise HTTPException(400, detail="alert_on must be 'entry', 'exit' or 'both'")
 
     updates = body.model_dump(exclude_unset=True)
+
+    # moving a circle: validate new center + radius stay coherent
+    if body.radius_m is not None and (body.radius_m <= 0 or body.radius_m > 200):
+        raise HTTPException(400, detail="radius_m must be between 1 and 200 m")
+
     for k, v in updates.items():
         setattr(fence, k, v)
     fence.updated_at = datetime.now(timezone.utc)

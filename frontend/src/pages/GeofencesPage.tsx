@@ -100,6 +100,34 @@ export default function GeofencesPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // edit-in-place: optimistic local fence updates (drag center / change radius)
+  const [editingFence, setEditingFence] = useState<Geofence | null>(null);
+
+  const handleFenceMove = async (id: number, lat: number, lon: number) => {
+    // optimistic
+    setFences((prev) => prev.map((f) => (f.id === id ? { ...f, center_lat: lat, center_lon: lon } : f)));
+    try {
+      // PUT currently doesn't accept center — extend via radius_m-only update? need dedicated fields
+      await api.put(`/geofences/${id}`, { center_lat: lat, center_lon: lon });
+      setNotice(t('geofences.moved'));
+      setTimeout(() => setNotice(''), 2500);
+    } catch {
+      setError(t('common.error'));
+      await fetchData();
+    }
+  };
+
+  const handleFenceRadius = async (f: Geofence, radius: number) => {
+    setEditingFence({ ...f, radius_m: radius });
+    setFences((prev) => prev.map((x) => (x.id === f.id ? { ...x, radius_m: radius } : x)));
+    try {
+      await api.put(`/geofences/${f.id}`, { radius_m: radius });
+    } catch {
+      setError(t('common.error'));
+      await fetchData();
+    }
+  };
+
   const onMapClick = (lat: number, lon: number) => {
     if (!isAdmin || drawMode === 'none' || showForm) return;
     if (drawMode === 'circle') {
@@ -275,11 +303,28 @@ export default function GeofencesPage() {
             {fences.map((f) => (
               <div key={f.id}>
                 {f.shape === 'circle' && f.center_lat != null && (
-                  <Circle
-                    center={[f.center_lat, f.center_lon!]}
-                    radius={f.radius_m!}
-                    pathOptions={{ color: f.color, fillColor: f.color, fillOpacity: 0.12, weight: 2 }}
-                  />
+                  <>
+                    <Circle
+                      center={[editingFence?.id === f.id ? editingFence.center_lat! : f.center_lat,
+                               editingFence?.id === f.id ? editingFence.center_lon! : f.center_lon!]}
+                      radius={editingFence?.id === f.id ? (editingFence.radius_m ?? f.radius_m!) : f.radius_m!}
+                      pathOptions={{ color: f.color, fillColor: f.color, fillOpacity: 0.12, weight: 2 }}
+                    />
+                    {isAdmin && (
+                      <Marker
+                        position={[f.center_lat, f.center_lon!]}
+                        icon={pinIcon}
+                        opacity={0.9}
+                        draggable
+                        eventHandlers={{
+                          dragend: (e) => {
+                            const ll = (e.target as L.Marker).getLatLng();
+                            handleFenceMove(f.id, ll.lat, ll.lng);
+                          },
+                        }}
+                      />
+                    )}
+                  </>
                 )}
                 {f.shape === 'polygon' && f.polygon && (
                   <Polygon
@@ -295,10 +340,20 @@ export default function GeofencesPage() {
               <>
                 <Circle
                   center={[draft.center.lat, draft.center.lon]}
-                  radius={draft.radius_m || 300}
+                  radius={draft.radius_m || 20}
                   pathOptions={{ color: '#1d4ed8', fillColor: '#1d4ed8', fillOpacity: 0.15, weight: 2, dashArray: '6' }}
                 />
-                <Marker position={[draft.center.lat, draft.center.lon]} icon={pinIcon} />
+                <Marker
+                  position={[draft.center.lat, draft.center.lon]}
+                  icon={pinIcon}
+                  draggable
+                  eventHandlers={{
+                    drag: (e) => {
+                      const ll = (e.target as L.Marker).getLatLng();
+                      setDraft((d) => (d ? { ...d, center: { lat: ll.lat, lon: ll.lng } } : d));
+                    },
+                  }}
+                />
               </>
             )}
             {draft?.shape === 'polygon' && draft.points && draft.points.length > 0 && (
@@ -340,6 +395,18 @@ export default function GeofencesPage() {
                         {t(`geofences.alert_${f.alert_on}`)}
                       </div>
                     </div>
+                    {isAdmin && f.shape === 'circle' && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <input
+                          type="range" min={1} max={200} step={1}
+                          value={f.radius_m ?? 20}
+                          onChange={(e) => handleFenceRadius(f, Number(e.target.value))}
+                          className="w-24 h-1"
+                          title={t('geofences.radius')}
+                        />
+                        <span className="text-xs text-gray-500 w-10">{Math.round(f.radius_m ?? 20)} m</span>
+                      </div>
+                    )}
                     {isAdmin && (
                       <div className="flex items-center gap-1 shrink-0">
                         <button

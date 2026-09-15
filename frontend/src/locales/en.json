@@ -323,6 +323,7 @@
     "events_title": "Recent events",
     "no_events": "No events yet — they are generated when a vehicle crosses a geofence",
     "entry": "Entry",
-    "exit": "Exit"
+    "exit": "Exit",
+    "moved": "Geofence moved"
   }
 }

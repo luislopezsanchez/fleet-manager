@@ -208,7 +208,13 @@
     "gsm": "Sinal GSM",
     "ext_voltage": "Voltagem externa",
     "bat_voltage": "Bateria interna",
-    "acc_unknown": "ACC desconhecido"
+    "acc_unknown": "ACC desconhecido",
+    "over_speed": "Limite de velocidade",
+    "fuel_short": "Combustível",
+    "latlon": "Lat / Lon",
+    "ignition": "Ignição",
+    "on": "ON",
+    "off": "OFF"
   },
   "alarms": {
     "alarm_1017": "Bateria externa fraca",
@@ -272,6 +278,7 @@
     "updated": "Veículo atualizado",
     "search_placeholder": "Buscar por nome, motorista, IMEI, placa, SIM, VIN ou setor…",
     "all_statuses": "Todos os estados",
-    "no_results": "Nenhum veículo corresponde à busca"
+    "no_results": "Nenhum veículo corresponde à busca",
+    "info": "Informações do Veículo"
   }
 }

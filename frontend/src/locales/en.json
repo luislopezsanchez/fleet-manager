@@ -208,7 +208,13 @@
     "gsm": "GSM signal",
     "ext_voltage": "External voltage",
     "bat_voltage": "Internal battery",
-    "acc_unknown": "ACC unknown"
+    "acc_unknown": "ACC unknown",
+    "over_speed": "Speed limit",
+    "fuel_short": "Fuel",
+    "latlon": "Lat / Lon",
+    "ignition": "Ignition",
+    "on": "ON",
+    "off": "OFF"
   },
   "alarms": {
     "alarm_1017": "External power low battery",
@@ -272,6 +278,7 @@
     "updated": "Vehicle updated",
     "search_placeholder": "Search by name, driver, IMEI, plate, SIM, VIN or sector…",
     "all_statuses": "All statuses",
-    "no_results": "No vehicle matches the search"
+    "no_results": "No vehicle matches the search",
+    "info": "Vehicle Information"
   }
 }

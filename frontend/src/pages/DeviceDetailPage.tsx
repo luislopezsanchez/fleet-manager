@@ -155,10 +155,12 @@ export default function DeviceDetailPage() {
     setPbError('');
     setPlaying(false);
     try {
+      // istarmap requires yyyy-MM-ddTHH:mm:ssZ exactly — milliseconds cause a 400
+      const fmt = (v: string) => v.replace(/\.\d+/, '') + 'Z';
       const res = await api.post<HistoryResponse>(`/devices/${imei}/history`, {
         imei,
-        start_time: new Date(pbStart + 'Z').toISOString(),
-        end_time: new Date(pbEnd + 'Z').toISOString(),
+        start_time: fmt(pbStart),
+        end_time: fmt(pbEnd),
         filter_drift: true,
       });
       setPbPoints(res.data.points);
@@ -166,8 +168,9 @@ export default function DeviceDetailPage() {
       if (res.data.points.length === 0) {
         setPbError(t('vehicles.no_track'));
       }
-    } catch {
-      setPbError(t('common.error'));
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || '';
+      setPbError(`${t('common.error')}: ${typeof detail === 'string' ? detail : t('vehicles.no_track')}`);
     } finally {
       setPbLoading(false);
     }
@@ -279,7 +282,7 @@ export default function DeviceDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Device Info */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:col-span-1">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('device.info')}</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">{t('vehicles.info')}</h2>
           <div className="space-y-3">
             <div>
               <label className="text-xs text-gray-500 uppercase">{t('devices.name')}</label>
@@ -316,12 +319,12 @@ export default function DeviceDetailPage() {
               </p>
             </div>
             <div>
-              <label className="text-xs text-gray-500 uppercase">Over Speed Limit</label>
+              <label className="text-xs text-gray-500 uppercase">{t('popup.over_speed')}</label>
               <p className="text-sm text-gray-700">{device?.over_speed ?? '—'} km/h</p>
             </div>
             <div>
-              <label className="text-xs text-gray-500 uppercase">Fuel</label>
-              <p className="text-sm text-gray-700">{device?.fuel_value ?? '—'}</p>
+              <label className="text-xs text-gray-500 uppercase">{t('popup.fuel_short')}</label>
+              <p className="text-sm text-gray-700">{device?.fuel_value ? device.fuel_value : '—'}</p>
             </div>
           </div>
 
@@ -383,9 +386,9 @@ export default function DeviceDetailPage() {
                   <Popup>
                     <div className="text-sm">
                       <strong>{device?.device_name || device?.imei}</strong><br />
-                      Speed: {position.speed?.toFixed(1) || 0} km/h<br />
+                      {t('popup.speed')}: {position.speed?.toFixed(1) || 0} km/h<br />
                       GPS Time: {position.gps_time || '—'}<br />
-                      Odometer: {position.odometer?.toFixed(1) || 0} km
+                      {t('popup.odometer')}: {position.odometer?.toFixed(1) || 0} km
                     </div>
                   </Popup>
                 </Marker>
@@ -400,23 +403,23 @@ export default function DeviceDetailPage() {
           {position && (
             <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-gray-50 rounded-lg p-3">
-                <label className="text-xs text-gray-500">Speed</label>
+                <label className="text-xs text-gray-500">{t('popup.speed')}</label>
                 <p className="text-sm font-medium text-gray-800">{position.speed?.toFixed(1) || 0} km/h</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
-                <label className="text-xs text-gray-500">Lat / Lon</label>
+                <label className="text-xs text-gray-500">{t('popup.latlon')}</label>
                 <p className="text-sm font-medium text-gray-800">
                   {position.lat.toFixed(4)}, {position.lon.toFixed(4)}
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
-                <label className="text-xs text-gray-500">Odometer</label>
+                <label className="text-xs text-gray-500">{t('popup.odometer')}</label>
                 <p className="text-sm font-medium text-gray-800">{position.odometer?.toFixed(1) || 0} km</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
-                <label className="text-xs text-gray-500">Ignition</label>
+                <label className="text-xs text-gray-500">{t('popup.ignition')}</label>
                 <p className="text-sm font-medium text-gray-800">
-                  {position.acc_on ? 'ON' : 'OFF'}
+                  {position.acc_on ? t('popup.on') : t('popup.off')}
                 </p>
               </div>
             </div>
@@ -549,7 +552,7 @@ export default function DeviceDetailPage() {
             <svg className="w-10 h-10 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5" />
             </svg>
-            <p className="text-gray-500 text-sm">No alerts for this device</p>
+            <p className="text-gray-500 text-sm">{t('alerts.no_alerts')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

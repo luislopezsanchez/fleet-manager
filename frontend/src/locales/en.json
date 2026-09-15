@@ -142,7 +142,10 @@
     "drv_deleted": "Driver deleted",
     "drv_delete_confirm": "Delete driver \"{name}\"? If assigned to a vehicle, their iButton will be removed from the tracker.",
     "drv_empty": "No registered drivers",
-    "drv_concept": "A driver is always associated with an iButton (their identity key). The tracker only lets the vehicle start when it reads a registered iButton."
+    "drv_concept": "A driver is always associated with an iButton (their identity key). The tracker only lets the vehicle start when it reads a registered iButton.",
+    "import_btn": "Import from istarmap",
+    "import_confirm": "Import drivers with their iButtons from the istarmap panel? Already registered ones are skipped.",
+    "import_done": "Import done: {{imported}} new, {{skipped}} skipped"
   },
   "device": {
     "detail": "Device Detail",

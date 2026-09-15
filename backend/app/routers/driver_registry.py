@@ -15,6 +15,7 @@ from app.auth import get_current_user, role_required
 from app.database import get_db
 from app.istarmap_client import IstarmapClient, get_authenticated_istarmap_client
 from app.models import CommandLog, CommandStatus, DeviceCache, DriverRegistry, User
+import httpx
 from app.schemas import DriverRegistryCreate, DriverRegistryResponse, DriverRegistryUpdate
 
 router = APIRouter(prefix="/ibuttons/drivers", tags=["ibuttons"])
@@ -199,3 +200,81 @@ async def delete_driver(
     await db.delete(driver)
     await db.flush()
     return None
+
+
+# ── Import from istarmap panel (undocumented endpoint used by the web UI) ──
+@router.post("/import", response_model=dict)
+async def import_from_istarmap(
+    org_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(role_required("admin")),
+    client: IstarmapClient = Depends(get_authenticated_istarmap_client),
+):
+    """Import drivers (with their iButtons) from the istarmap panel.
+
+    Uses the panel's term_card endpoint (GET /dpms/term_card/{org}/page),
+    which the web UI calls but is not in the public docs.
+    """
+    token = client._token
+    if not token:
+        raise HTTPException(401, detail="Not authenticated against istarmap")
+
+    imported = 0
+    skipped = 0
+    current = 1
+    async with httpx.AsyncClient(timeout=30) as http:
+        while True:
+            resp = await http.get(
+                f"{client.base_url}/dpms/term_card/{org_id}/page",
+                params={"search": "", "deviceId": "", "orgId": org_id,
+                        "current": current, "size": 50, "startTime": "", "endTime": ""},
+                headers={"Authorization": f"bearer {token}"},
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            data = body.get("data") or {}
+            records = data.get("records", [])
+            if not records:
+                break
+
+            for r in records:
+                ibutton = (r.get("cardNo") or "").strip()
+                name = (r.get("cardName") or "").strip()
+                if not ibutton or not name:
+                    skipped += 1
+                    continue
+
+                existing = await db.execute(
+                    select(DriverRegistry).where(DriverRegistry.ibutton_id == ibutton)
+                )
+                if existing.scalar_one_or_none():
+                    skipped += 1
+                    continue
+
+                # device link if present
+                device = r.get("device") or {}
+                imei = None
+                if isinstance(device, dict):
+                    imei = device.get("imei") or device.get("sn")
+
+                driver = DriverRegistry(
+                    full_name=name,
+                    ibutton_id=ibutton,
+                    device_imei=imei,
+                    phone=(r.get("telephone") or None),
+                    document=(r.get("idNumber") or None),
+                    card_type=r.get("cardType") or "IBUTTON",
+                    expiry=None,  # dueTime epoch not parsed yet if format unknown
+                    notes=(r.get("remark") or None),
+                    updated_at=datetime.now(timezone.utc),
+                )
+                db.add(driver)
+                imported += 1
+
+            total_pages = data.get("pages") or (data.get("total", 0) + 49) // 50
+            if current >= total_pages:
+                break
+            current += 1
+
+    await db.flush()
+    return {"imported": imported, "skipped": skipped}

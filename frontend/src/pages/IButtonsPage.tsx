@@ -50,6 +50,7 @@ export default function IButtonsPage() {
   const [form, setForm] = useState({ full_name: '', ibutton_id: '', device_imei: '', phone: '', document: '', expiry: '', notes: '' });
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -78,6 +79,22 @@ export default function IButtonsPage() {
     fetchData();
     fetchCommands();
   }, [fetchData, fetchCommands]);
+
+  const importFromIstarmap = async () => {
+    if (!window.confirm(t('ibuttons.import_confirm'))) return;
+    setImporting(true);
+    try {
+      const res = await api.post('/ibuttons/drivers/import', null, { params: { org_id: 6128 } });
+      const { imported, skipped } = res.data;
+      setNotice(t('ibuttons.import_done', { imported, skipped }));
+      await fetchData();
+      setTimeout(() => setNotice(''), 5000);
+    } catch {
+      setError(t('common.error'));
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const openCreate = () => {
     setEditDriver(null);
@@ -182,6 +199,15 @@ export default function IButtonsPage() {
             placeholder={t('common.search')}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:ring-2 focus:ring-blue-500 outline-none"
           />
+          {isAdmin && (
+            <button
+              onClick={importFromIstarmap}
+              disabled={importing}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 text-sm"
+            >
+              {importing ? t('common.loading') : `⬇ ${t('ibuttons.import_btn')}`}
+            </button>
+          )}
           {isAdmin && (
             <button
               onClick={openCreate}

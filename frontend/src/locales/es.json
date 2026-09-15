@@ -142,7 +142,10 @@
     "drv_deleted": "Conductor eliminado",
     "drv_delete_confirm": "¿Eliminar al conductor \"{name}\"? Si tiene vehículo asignado, su iButton se quitará del tracker.",
     "drv_empty": "Sin conductores registrados",
-    "drv_concept": "Un conductor siempre está asociado a un iButton (su llave de identidad). El tracker solo permite arrancar al vehículo cuando lee un iButton registrado."
+    "drv_concept": "Un conductor siempre está asociado a un iButton (su llave de identidad). El tracker solo permite arrancar al vehículo cuando lee un iButton registrado.",
+    "import_btn": "Importar de istarmap",
+    "import_confirm": "¿Importar los conductores con sus iButtons desde el panel de istarmap? Los ya registrados se omiten.",
+    "import_done": "Importación completa: {{imported}} nuevos, {{skipped}} omitidos"
   },
   "device": {
     "detail": "Detalle de Dispositivo",

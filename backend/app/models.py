@@ -245,3 +245,18 @@ class GeofenceEvent(Base):
     )
 
     geofence: Mapped["Geofence"] = relationship()
+
+# ── DriverAssignment (who drove which vehicle, when) ────────────────────────
+class DriverAssignment(Base):
+    __tablename__ = "driver_assignments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_imei: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    driver_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    driver_doc: Mapped[str | None] = mapped_column(String(100), nullable=True)  # DNI/licencia
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # NULL = current
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

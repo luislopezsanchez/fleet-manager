@@ -346,5 +346,28 @@ class GeofenceEventResponse(BaseModel):
     device_name: Optional[str] = None
 
 
+# ── Driver assignments ─────────────────────────────────────────────────────
+class DriverAssignmentCreate(BaseModel):
+    device_imei: str
+    driver_name: str
+    driver_doc: Optional[str] = None
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class DriverAssignmentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    device_imei: str
+    driver_name: str
+    driver_doc: Optional[str] = None
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    notes: Optional[str] = None
+    created_at: datetime
+
+
 # ── Forward refs ───────────────────────────────────────────────────────────
 TokenResponse.model_rebuild()

@@ -96,6 +96,9 @@ class DeviceCache(Base):
     sector_id: Mapped[int | None] = mapped_column(
         ForeignKey("sectors.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # local-only flag: devices deleted in the UI are excluded from lists and
+    # re-creation by the hourly istarmap sync (istarmap API has no device CRUD)
+    is_excluded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
     raw_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False

@@ -262,6 +262,13 @@
     "cmd_success": "SUCCESS",
     "cmd_offline": "El vehículo está desconectado (OFF_LINE)",
     "cmd_fail": "El comando falló (FAIL)",
-    "cmd_check": "Consultar resultado"
+    "cmd_check": "Consultar resultado",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "edit_title": "Editar Vehículo",
+    "save": "Guardar cambios",
+    "delete_confirm": "¿Eliminar el vehículo «{name}» de la flota? Seguirá existiendo en el cloud de istarmap y podrás re-añadirlo por IMEI.",
+    "deleted": "Vehículo eliminado",
+    "updated": "Vehículo actualizado"
   }
 }

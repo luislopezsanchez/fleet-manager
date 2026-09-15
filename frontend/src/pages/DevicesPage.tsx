@@ -152,6 +152,62 @@ export default function DevicesPage() {
     }
   };
 
+  const [editDevice, setEditDevice] = useState<Device | null>(null);
+  const [editForm, setEditForm] = useState<VehicleCreatePayload>({ imei: '' });
+  const [editError, setEditError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const openEdit = (d: Device) => {
+    setEditDevice(d);
+    setEditError('');
+    setEditForm({
+      imei: d.imei,
+      device_name: d.device_name || '',
+      driver_name: d.driver_name || '',
+      plate_no: d.plate_no || '',
+      sector_id: d.sector_id,
+      over_speed: d.over_speed ?? undefined,
+      sim: d.sim || '',
+      car_vin: d.car_vin || '',
+    });
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editDevice) return;
+    setEditError('');
+    try {
+      await api.put(`/devices/${editDevice.imei}`, {
+        device_name: editForm.device_name || null,
+        driver_name: editForm.driver_name || null,
+        plate_no: editForm.plate_no || null,
+        sector_id: editForm.sector_id ?? null,
+        over_speed: editForm.over_speed ?? null,
+        sim: editForm.sim || null,
+        car_vin: editForm.car_vin || null,
+      });
+      setEditDevice(null);
+      setNotice(t('vehicles.updated'));
+      await fetchDevices();
+      setTimeout(() => setNotice(''), 3000);
+    } catch {
+      setEditError(t('common.error'));
+    }
+  };
+
+  const handleDelete = async (d: Device) => {
+    const name = d.device_name || d.imei;
+    if (!window.confirm(t('vehicles.delete_confirm', { name }))) return;
+    try {
+      await api.delete(`/devices/${d.imei}`);
+      setNotice(t('vehicles.deleted'));
+      await fetchDevices();
+      setTimeout(() => setNotice(''), 3000);
+    } catch {
+      setError(t('common.error'));
+    }
+  };
+
   const getSectorName = (sectorId: number | null) => {
     if (sectorId === null || sectorId === undefined) return null;
     const sector = sectors.find((s) => s.id === sectorId);
@@ -233,6 +289,12 @@ export default function DevicesPage() {
         </div>
       )}
 
+      {notice && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm mb-4">
+          {notice}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {devices.length === 0 ? (
           <div className="text-center py-16">
@@ -253,6 +315,7 @@ export default function DevicesPage() {
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('vehicles.sector')}</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('devices.last_seen')}</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('devices.status')}</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">{t('common.actions')}</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider"></th>
                 </tr>
               </thead>
@@ -299,6 +362,30 @@ export default function DevicesPage() {
                           {t(`status.${status}`)}
                         </span>
                       </td>
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => openEdit(device)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600"
+                              title={t('vehicles.edit')}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(device)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-red-600"
+                              title={t('vehicles.delete')}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -312,6 +399,76 @@ export default function DevicesPage() {
           </div>
         )}
       </div>
+
+      {/* Edit vehicle modal */}
+      {editDevice && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setEditDevice(null)}>
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold text-gray-800 mb-1">{t('vehicles.edit_title')}</h2>
+            <p className="text-xs text-gray-400 font-mono mb-4">IMEI: {editDevice.imei}</p>
+            {editError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm mb-3">{editError}</div>
+            )}
+            <form onSubmit={handleEdit} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.name')}</label>
+                  <input className={inputCls} value={editForm.device_name || ''} onChange={(e) => setEditForm({ ...editForm, device_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.driver')}</label>
+                  <input className={inputCls} value={editForm.driver_name || ''} onChange={(e) => setEditForm({ ...editForm, driver_name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.plate')}</label>
+                  <input className={inputCls} value={editForm.plate_no || ''} onChange={(e) => setEditForm({ ...editForm, plate_no: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.over_speed')}</label>
+                  <input
+                    type="number"
+                    className={inputCls}
+                    value={editForm.over_speed ?? ''}
+                    onChange={(e) => setEditForm({ ...editForm, over_speed: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.sim')}</label>
+                  <input className={inputCls} value={editForm.sim || ''} onChange={(e) => setEditForm({ ...editForm, sim: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.vin')}</label>
+                  <input className={inputCls} value={editForm.car_vin || ''} onChange={(e) => setEditForm({ ...editForm, car_vin: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t('vehicles.sector')}</label>
+                <select
+                  className={inputCls}
+                  value={editForm.sector_id ?? ''}
+                  onChange={(e) => setEditForm({ ...editForm, sector_id: e.target.value === '' ? null : Number(e.target.value) })}
+                >
+                  <option value="">{t('devices.no_sector')}</option>
+                  {sectors.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditDevice(null)} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+                  {t('vehicles.save')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add vehicle modal */}
       {showAdd && (

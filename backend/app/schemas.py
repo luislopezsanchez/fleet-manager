@@ -223,6 +223,16 @@ class DeviceSectorAssignRequest(BaseModel):
     sector_id: Optional[int] = None  # None = unassign
 
 
+class VehicleUpdateRequest(BaseModel):
+    device_name: Optional[str] = None
+    driver_name: Optional[str] = None
+    plate_no: Optional[str] = None
+    sector_id: Optional[int] = None
+    over_speed: Optional[int] = None
+    sim: Optional[str] = None
+    car_vin: Optional[str] = None
+
+
 class VehicleCreateRequest(BaseModel):
     imei: str = Field(min_length=10, max_length=20)
     device_name: Optional[str] = None

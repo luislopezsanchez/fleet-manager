@@ -262,6 +262,13 @@
     "cmd_success": "SUCCESS",
     "cmd_offline": "Vehicle is offline (OFF_LINE)",
     "cmd_fail": "Command failed (FAIL)",
-    "cmd_check": "Check result"
+    "cmd_check": "Check result",
+    "edit": "Edit",
+    "delete": "Delete",
+    "edit_title": "Edit Vehicle",
+    "save": "Save changes",
+    "delete_confirm": "Remove vehicle '{name}' from the fleet? It will still exist in the istarmap cloud and can be re-added by IMEI.",
+    "deleted": "Vehicle deleted",
+    "updated": "Vehicle updated"
   }
 }

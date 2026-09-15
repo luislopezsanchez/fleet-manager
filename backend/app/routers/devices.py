@@ -24,6 +24,7 @@ from app.schemas import (
     TrackRequest,
     TrackResponse,
     VehicleCreateRequest,
+    VehicleUpdateRequest,
 )
 
 router = APIRouter(prefix="/devices", tags=["devices"])
@@ -55,6 +56,10 @@ async def sync_devices_into_db(
 
         existing = await db.execute(select(DeviceCache).where(DeviceCache.imei == imei))
         record = existing.scalar_one_or_none()
+
+        # locally-deleted vehicles stay deleted: skip, never revive from cloud
+        if record is not None and record.is_excluded:
+            continue
 
         fields = {
             "id": dev.get("id", 0),
@@ -95,7 +100,7 @@ async def list_devices(
 ):
     """List devices from local cache. Admins see all (optionally filtered by sector_id);
     supervisors see only their sector's devices."""
-    query = select(DeviceCache).order_by(DeviceCache.device_name)
+    query = select(DeviceCache).where(DeviceCache.is_excluded == False).order_by(DeviceCache.device_name)
 
     # If supervisor, restrict to their sector
     if current_user.role == UserRole.supervisor and current_user.sector_id is not None:
@@ -151,11 +156,28 @@ async def create_vehicle(
     the local cache entry so it appears in the fleet lists.
     """
     existing = await db.execute(select(DeviceCache).where(DeviceCache.imei == body.imei))
-    if existing.scalar_one_or_none():
+    record = existing.scalar_one_or_none()
+    if record is not None and not record.is_excluded:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Vehicle with IMEI {body.imei} already exists",
         )
+
+    if record is not None:
+        # previously deleted locally — revive it with the new data
+        record.is_excluded = False
+        record.device_name = body.device_name
+        record.driver_name = body.driver_name
+        record.plate_no = body.plate_no
+        record.org_id = body.org_id
+        record.sector_id = body.sector_id
+        record.over_speed = body.over_speed
+        record.sim = body.sim
+        record.car_vin = body.car_vin
+        record.updated_at = datetime.now(timezone.utc)
+        await db.flush()
+        await db.refresh(record)
+        return DeviceResponse.model_validate(record)
 
     record = DeviceCache(
         imei=body.imei,
@@ -226,6 +248,56 @@ def _first_id_value(items: list | None) -> float | None:
     for it in items:
         if isinstance(it, dict) and it.get("value") is not None:
             return float(it["value"])
+    return None
+
+
+@router.put("/{imei}", response_model=DeviceResponse)
+async def update_vehicle(
+    imei: str,
+    body: VehicleUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(role_required("admin")),
+):
+    """Edit a vehicle's local fields. Admin only."""
+    result = await db.execute(select(DeviceCache).where(DeviceCache.imei == imei))
+    device = result.scalar_one_or_none()
+    if not device or device.is_excluded:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vehicle with IMEI {imei} not found",
+        )
+
+    updates = body.model_dump(exclude_unset=True)
+    for k, v in updates.items():
+        setattr(device, k, v)
+    device.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    await db.refresh(device)
+    return DeviceResponse.model_validate(device)
+
+
+@router.delete("/{imei}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_vehicle(
+    imei: str,
+    db: AsyncSession = Depends(get_db),
+    _current_user: User = Depends(role_required("admin")),
+):
+    """Remove a vehicle from the local fleet. Admin only.
+
+    Istarmap's API has no device-delete endpoint, so the device remains in the
+    cloud: we tombstone it locally (is_excluded) so lists hide it and the hourly
+    sync does not revive it. It can be re-added later by IMEI.
+    """
+    result = await db.execute(select(DeviceCache).where(DeviceCache.imei == imei))
+    device = result.scalar_one_or_none()
+    if not device or device.is_excluded:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vehicle with IMEI {imei} not found",
+        )
+    device.is_excluded = True
+    device.updated_at = datetime.now(timezone.utc)
+    await db.flush()
     return None
 
 

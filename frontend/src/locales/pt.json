@@ -15,7 +15,7 @@
   "nav": {
     "dashboard": "Painel Principal",
     "devices": "Dispositivos",
-    "map": "Mapa",
+    "map": "Monitoramento",
     "reports": "Relatórios",
     "ibuttons": "iButtons",
     "alerts": "Alertas",
@@ -281,6 +281,13 @@
     "no_results": "Nenhum veículo corresponde à busca",
     "info": "Informações do Veículo",
     "speed": "Velocidade de reprodução",
-    "downsampled": "Mostrando {{shown}} de {{total}} pontos GPS para reprodução suave"
+    "downsampled": "Mostrando {{shown}} de {{total}} pontos GPS para reprodução suave",
+    "search_placeholder_short": "Buscar veículo…"
+  },
+  "monitoring": {
+    "title": "Monitoramento",
+    "subtitle": "Rastreamento ao vivo da frota",
+    "all_sectors": "Todos os setores",
+    "clear_focus": "Remover foco"
   }
 }

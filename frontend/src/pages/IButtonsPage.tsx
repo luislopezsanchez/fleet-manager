@@ -155,6 +155,15 @@ export default function IButtonsPage() {
     }
   };
 
+  const toggleActive = async (d: DriverRegistry) => {
+    try {
+      await api.put(`/ibuttons/drivers/${d.id}`, { is_active: !d.is_active });
+      await fetchData();
+    } catch {
+      setError(t('common.error'));
+    }
+  };
+
   const removeDriver = async (d: DriverRegistry) => {
     if (!window.confirm(t('ibuttons.drv_delete_confirm', { name: d.full_name }))) return;
     try {
@@ -275,6 +284,13 @@ export default function IButtonsPage() {
                     {isAdmin && (
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => toggleActive(d)}
+                            className={`px-2 py-1 rounded text-xs font-medium ${d.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}
+                            title={d.is_active ? t('ibuttons.drv_disable') : t('ibuttons.drv_enable')}
+                          >
+                            {d.is_active ? 'ON' : 'OFF'}
+                          </button>
                           <button onClick={() => openEdit(d)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600" title={t('vehicles.edit')}>
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

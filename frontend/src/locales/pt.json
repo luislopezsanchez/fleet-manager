@@ -145,7 +145,9 @@
     "drv_concept": "Um motorista está sempre associado a um iButton (sua chave de identidade). O tracker só permite ligar o veículo quando lê um iButton registrado.",
     "import_btn": "Importar do istarmap",
     "import_confirm": "Importar motoristas com seus iButtons do painel istarmap? Já registrados serão omitidos.",
-    "import_done": "Importação concluída: {{imported}} novos, {{skipped}} omitidos"
+    "import_done": "Importação concluída: {{imported}} novos, {{skipped}} omitidos",
+    "drv_enable": "Habilitar motorista (seu iButton volta a ser válido nesta plataforma)",
+    "drv_disable": "Desabilitar motorista (seu iButton é ignorado em relatórios e consultas desta plataforma)"
   },
   "device": {
     "detail": "Detalhe do Dispositivo",

@@ -145,7 +145,9 @@
     "drv_concept": "A driver is always associated with an iButton (their identity key). The tracker only lets the vehicle start when it reads a registered iButton.",
     "import_btn": "Import from istarmap",
     "import_confirm": "Import drivers with their iButtons from the istarmap panel? Already registered ones are skipped.",
-    "import_done": "Import done: {{imported}} new, {{skipped}} skipped"
+    "import_done": "Import done: {{imported}} new, {{skipped}} skipped",
+    "drv_enable": "Enable driver (their iButton becomes valid again on this platform)",
+    "drv_disable": "Disable driver (their iButton is ignored in reports and queries on this platform)"
   },
   "device": {
     "detail": "Device Detail",

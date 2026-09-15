@@ -159,8 +159,14 @@ export default function DeviceDetailPage() {
     setPbNotice('');
     setPlaying(false);
     try {
-      // istarmap requires yyyy-MM-ddTHH:mm:ssZ exactly — milliseconds cause a 400
-      const fmt = (v: string) => v.replace(/\.\d+/, '') + 'Z';
+      // istarmap requires yyyy-MM-ddTHH:mm:ssZ exactly. The datetime-local input
+      // omits seconds when they are :00 (and toISOString() adds milliseconds):
+      // normalize both cases or istarmap answers 400.
+      const fmt = (v: string) => {
+        const m = v.replace(/\.\d+/, '').match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})(?::(\d{2}))?$/);
+        if (!m) return v + 'Z';
+        return `${m[1]}:${m[2] ?? '00'}Z`;
+      };
       const res = await api.post<HistoryResponse>(`/devices/${imei}/history`, {
         imei,
         start_time: fmt(pbStart),

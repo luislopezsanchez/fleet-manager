@@ -1,5 +1,6 @@
 """Devices router: list, sync, position, live tracking."""
 import logging
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -423,9 +424,24 @@ async def get_device_history(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="imei in path and body must match",
         )
+
+    # istarmap requires exactly yyyy-MM-ddTHH:mm:ssZ; tolerate missing seconds
+    # or extra milliseconds from clients instead of failing after 3 retries.
+    def _norm_ts(ts: str) -> str:
+        m = re.match(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})(?::(\d{2}))?(?:\.\d+)?Z?$", ts)
+        if not m:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid timestamp '{ts}' — expected yyyy-MM-ddTHH:mm:ssZ",
+            )
+        return f"{m.group(1)}:{m.group(2) or '00'}Z"
+
+    start_ts = _norm_ts(body.start_time)
+    end_ts = _norm_ts(body.end_time)
+
     try:
         raw = await client.get_history(
-            imei, body.start_time, body.end_time, body.filter_drift
+            imei, start_ts, end_ts, body.filter_drift
         )
     except Exception as exc:
         raise HTTPException(
